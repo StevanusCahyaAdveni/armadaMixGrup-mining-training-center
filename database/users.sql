@@ -9,8 +9,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   `fullname` varchar(500) NOT NULL COMMENT 'Nama lengkap user',
   `username` varchar(500) NOT NULL COMMENT 'Username untuk login',
   `email` varchar(250) NOT NULL COMMENT 'Email user',
+  `whatsapp_number` varchar(15) NOT NULL COMMENT 'Nomor whatsapp user',
   `password` text NOT NULL COMMENT 'Password terenkripsi',
   `photo_profile` text DEFAULT NULL COMMENT 'Path foto profil user',
+  `role` varchar(250) NOT NULL COMMENT 'Role user', -- rekrut atau sudah bekerja 
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Waktu pembuatan akun',
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_username` (`username`),
