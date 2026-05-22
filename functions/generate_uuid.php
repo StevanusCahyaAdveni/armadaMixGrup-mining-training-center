@@ -14,9 +14,6 @@ function generate_uuid() {
     );
 }
 
-?>
-
-
 // Contoh penggunaan:
 // echo generate_uuid();
 // Output: misalnya "a3f2b1c4-5d6e-4f7a-8b9c-0d1e2f3a4b5c"
@@ -24,3 +21,4 @@ function generate_uuid() {
 // Atau untuk menyimpan ke database:
 // $uuid = generate_uuid();
 // $query = "INSERT INTO users (id, name) VALUES ('$uuid', 'John Doe')";
+?>
