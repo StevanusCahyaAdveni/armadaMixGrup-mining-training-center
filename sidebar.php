@@ -24,10 +24,11 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                 ?>
                 <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
                     <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
-                        <i class="bi bi-file-earmark-medical-fill"></i>
+                        <i class="bi bi-grid-fill"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
+
 
                 <li class="sidebar-title">Users</li>
                 <!-- Example New Menu in Side Bar -->
@@ -41,15 +42,42 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                     </a>
                 </li>
                 <!-- End Example New Menu in Side Bar -->
+                <?php if (strpos($fullUrl, 'mining-training-center.armadamix.id') === false) { ?>
+                    <li class="sidebar-title">CRUD</li>
+                    <?php
+                    $sidebarPage = "crud-generate";
+                    ?>
+                    <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                        <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                            <i class="bi bi-code-square"></i>
+                            <span>Generate CRUD</span>
+                        </a>
+                    </li>
+                <?php } ?>
 
-                <li class="sidebar-title">CRUD</li>
+                <li class="sidebar-title">Assesments</li>
                 <?php
-                $sidebarPage = "crud-generate";
+                $sidebarPage = "test_test-category";
                 ?>
                 <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
                     <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
-                        <i class="bi bi-people-fill"></i>
-                        <span>Generate CRUD</span>
+                        <i class="bi bi-tags-fill"></i>
+                        <span>Test Category</span>
+                    </a>
+                </li>
+                <?php
+                $sidebarPage = "test_test";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-clipboard-check-fill"></i>
+                        <span>Test Management</span>
+                    </a>
+                </li>
+                <li class="sidebar-item <?= ($getHal == 'test_test-user-session') ? 'active' : '' ?>">
+                    <a href="?hal=test_test-user-session" class='sidebar-link'>
+                        <i class="bi bi-journal-text"></i>
+                        <span>Test User Session</span>
                     </a>
                 </li>
 
