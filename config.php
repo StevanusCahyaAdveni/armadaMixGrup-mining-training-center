@@ -12,7 +12,7 @@ $requestUri = $_SERVER['REQUEST_URI'] ?? '';
 $fullUrl = $protocol . $domain . $requestUri;
 
 // Konfigurasi Database (Local vs Server)
-if (strpos($fullUrl, 'example.com') !== false) {
+if (strpos($fullUrl, 'mining-training-center.armadamix.id') !== false) {
     // Konfigurasi Server / Production (Ubah sesuai kredensial server Anda)
     $dbHost = 'mysql.example.com';
     $dbUser = 'prod_user';
@@ -23,7 +23,7 @@ if (strpos($fullUrl, 'example.com') !== false) {
     $dbHost = 'localhost';
     $dbUser = 'root';
     $dbPass = '';
-    $dbName = 'project_php_action_based';
+    $dbName = 'armadamix_mtc';
 }
 
 // Definisikan konstanta agar kompatibel dengan kode lain
@@ -46,5 +46,5 @@ mysqli_set_charset($con, "utf8mb4");
 // Set timezone (sesuaikan dengan timezone Anda)
 date_default_timezone_set('Asia/Jakarta');
 
-$appName = "Little PHP Framework";
+$appName = "MTC";
 ?>
