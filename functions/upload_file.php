@@ -254,7 +254,8 @@ function uploadImage($sourcePath, $targetPath, $extension)
 
     // Jika gagal kompres, upload original
     if (!$compressed) {
-        if (!move_uploaded_file($sourcePath, $targetPath)) {
+        $uploadSuccess = (php_sapi_name() === 'cli') ? @copy($sourcePath, $targetPath) : move_uploaded_file($sourcePath, $targetPath);
+        if (!$uploadSuccess) {
             return [
                 'success' => false,
                 'message' => 'Gagal upload file',
@@ -284,7 +285,8 @@ function uploadPDF($sourcePath, $targetPath)
     // PDF compression memerlukan library eksternal seperti Ghostscript
     // Untuk saat ini, langsung upload tanpa kompresi
 
-    if (!move_uploaded_file($sourcePath, $targetPath)) {
+    $uploadSuccess = (php_sapi_name() === 'cli') ? @copy($sourcePath, $targetPath) : move_uploaded_file($sourcePath, $targetPath);
+    if (!$uploadSuccess) {
         return [
             'success' => false,
             'message' => 'Gagal upload PDF',
@@ -310,7 +312,8 @@ function uploadPDF($sourcePath, $targetPath)
  */
 function uploadGeneric($sourcePath, $targetPath)
 {
-    if (!move_uploaded_file($sourcePath, $targetPath)) {
+    $uploadSuccess = (php_sapi_name() === 'cli') ? @copy($sourcePath, $targetPath) : move_uploaded_file($sourcePath, $targetPath);
+    if (!$uploadSuccess) {
         return [
             'success' => false,
             'message' => 'Gagal upload file',
