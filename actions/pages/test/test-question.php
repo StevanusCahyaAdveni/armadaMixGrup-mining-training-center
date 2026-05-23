@@ -73,10 +73,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $cTrue = ($i === $trueIndex) ? 'true' : 'false';
                             $cPoint = sani($choice['point'] ?? '0');
                             
+                            $mediaPath = null;
+                            $fileInputName = 'questions_choice_media_files_' . $qIndex . '_' . $i;
+                            if (isset($_FILES[$fileInputName]) && $_FILES[$fileInputName]['error'] === UPLOAD_ERR_OK) {
+                                $uploadRes = uploadFile($_FILES[$fileInputName], '../assets/test_medias/');
+                                if ($uploadRes && $uploadRes['success']) {
+                                    $mediaPath = preg_replace('/^\.\.\//', '', $uploadRes['file_path']);
+                                }
+                            }
+                            
                             executeSecure($con, 
-                                "INSERT INTO test_question_choices (id, question_id, choice_text, choice_true, point) VALUES (?, ?, ?, ?, ?)",
-                                [$cId, $id, $cText, $cTrue, $cPoint],
-                                'sssss'
+                                "INSERT INTO test_question_choices (id, question_id, choice_text, choice_true, point, media_file) VALUES (?, ?, ?, ?, ?, ?)",
+                                [$cId, $id, $cText, $cTrue, $cPoint, $mediaPath],
+                                'ssssss'
                             );
                         }
                     }
@@ -173,15 +182,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 [$cText, $cTrue, $cPoint, $cId],
                                 'ssss'
                             );
+                            
+                            // Check if remove media is checked
+                            if (isset($choice['remove_media']) && $choice['remove_media'] === '1') {
+                                $oldRes = querySecure($con, "SELECT media_file FROM test_question_choices WHERE id = ?", [$cId], 's');
+                                if ($oldRes && $oldRow = mysqli_fetch_assoc($oldRes)) {
+                                    if (!empty($oldRow['media_file']) && file_exists('../' . $oldRow['media_file'])) {
+                                        @unlink('../' . $oldRow['media_file']);
+                                    }
+                                }
+                                executeSecure($con, "UPDATE test_question_choices SET media_file = NULL WHERE id = ?", [$cId], 's');
+                            }
+                            
+                            // Check for new upload
+                            $fileInputName = "edit_choice_media_files_{$i}";
+                            if (isset($_FILES[$fileInputName]) && $_FILES[$fileInputName]['error'] === UPLOAD_ERR_OK) {
+                                include_once '../functions/upload_file.php';
+                                $oldRes = querySecure($con, "SELECT media_file FROM test_question_choices WHERE id = ?", [$cId], 's');
+                                if ($oldRes && $oldRow = mysqli_fetch_assoc($oldRes)) {
+                                    if (!empty($oldRow['media_file']) && file_exists('../' . $oldRow['media_file'])) {
+                                        @unlink('../' . $oldRow['media_file']);
+                                    }
+                                }
+                                
+                                $uploadRes = uploadFile($_FILES[$fileInputName], '../assets/test_medias/');
+                                if ($uploadRes && $uploadRes['success']) {
+                                    $mediaPath = preg_replace('/^\.\.\//', '', $uploadRes['file_path']);
+                                    executeSecure($con, "UPDATE test_question_choices SET media_file = ? WHERE id = ?", [$mediaPath, $cId], 'ss');
+                                }
+                            }
                         }
                     } else {
                         if (!empty($cText)) {
                             // Insert new choice
                             $newChoiceId = generate_uuid();
+                            
+                            $mediaPath = null;
+                            $fileInputName = "edit_choice_media_files_{$i}";
+                            if (isset($_FILES[$fileInputName]) && $_FILES[$fileInputName]['error'] === UPLOAD_ERR_OK) {
+                                include_once '../functions/upload_file.php';
+                                $uploadRes = uploadFile($_FILES[$fileInputName], '../assets/test_medias/');
+                                if ($uploadRes && $uploadRes['success']) {
+                                    $mediaPath = preg_replace('/^\.\.\//', '', $uploadRes['file_path']);
+                                }
+                            }
+                            
                             executeSecure($con,
-                                "INSERT INTO test_question_choices (id, question_id, choice_text, choice_true, point) VALUES (?, ?, ?, ?, ?)",
-                                [$newChoiceId, $id, $cText, $cTrue, $cPoint],
-                                'sssss'
+                                "INSERT INTO test_question_choices (id, question_id, choice_text, choice_true, point, media_file) VALUES (?, ?, ?, ?, ?, ?)",
+                                [$newChoiceId, $id, $cText, $cTrue, $cPoint, $mediaPath],
+                                'ssssss'
                             );
                         }
                     }
@@ -278,6 +327,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $test_id = $questionRow ? $questionRow['test_id'] : '';
     $questionText = $questionRow ? $questionRow['question'] : $id;
 
+    // Delete files for choices
+    $choiceQuery = querySecure($con, "SELECT media_file FROM test_question_choices WHERE question_id = ?", [$id], 's');
+    if ($choiceQuery) {
+        while ($cRow = mysqli_fetch_assoc($choiceQuery)) {
+            if (!empty($cRow['media_file'])) {
+                $diskPath = '../' . $cRow['media_file'];
+                if (file_exists($diskPath)) {
+                    @unlink($diskPath);
+                }
+            }
+        }
+    }
+    
     // Hapus data pilihan (choices) terkait
     executeSecure($con, "DELETE FROM test_question_choices WHERE question_id = ?", [$id], 's');
 

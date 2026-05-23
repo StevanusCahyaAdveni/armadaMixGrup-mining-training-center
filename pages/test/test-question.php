@@ -128,6 +128,10 @@ if (!empty($test_id)) {
                                                     </span>
                                                     <?= htmlspecialchars($c['choice_text']) ?>
                                                     <span class="text-muted">(Poin: <?= htmlspecialchars($c['point']) ?>)</span>
+                                                    <?php if (!empty($c['media_file'])): ?>
+                                                        <br>
+                                                        <span class="badge bg-warning text-dark mt-1" style="font-size: 9px;"><i class="bi bi-image"></i> Attached Media</span>
+                                                    <?php endif; ?>
                                                 </li>
                                             <?php endforeach; ?>
                                         </ul>
@@ -287,7 +291,8 @@ if (!empty($test_id)) {
                                                         <input class="form-check-input true-radio" type="radio" name="questions[0][choice_true_index]" value="0" checked>
                                                     </td>
                                                     <td>
-                                                        <input type="text" class="form-control form-control-sm choice-text" name="questions[0][choices][0][text]" placeholder="Choice A" required>
+                                                        <input type="text" class="form-control form-control-sm choice-text mb-1" name="questions[0][choices][0][text]" placeholder="Choice A" required>
+                                                        <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_0_0" accept="image/*,video/*,audio/*">
                                                     </td>
                                                     <td>
                                                         <input type="number" class="form-control form-control-sm" name="questions[0][choices][0][point]" value="10" min="0" required>
@@ -298,7 +303,8 @@ if (!empty($test_id)) {
                                                         <input class="form-check-input true-radio" type="radio" name="questions[0][choice_true_index]" value="1">
                                                     </td>
                                                     <td>
-                                                        <input type="text" class="form-control form-control-sm choice-text" name="questions[0][choices][1][text]" placeholder="Choice B" required>
+                                                        <input type="text" class="form-control form-control-sm choice-text mb-1" name="questions[0][choices][1][text]" placeholder="Choice B" required>
+                                                        <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_0_1" accept="image/*,video/*,audio/*">
                                                     </td>
                                                     <td>
                                                         <input type="number" class="form-control form-control-sm" name="questions[0][choices][1][point]" value="0" min="0" required>
@@ -309,10 +315,11 @@ if (!empty($test_id)) {
                                                         <input class="form-check-input true-radio" type="radio" name="questions[0][choice_true_index]" value="2">
                                                     </td>
                                                     <td>
-                                                        <div class="input-group input-group-sm">
+                                                        <div class="input-group input-group-sm mb-1">
                                                             <input type="text" class="form-control form-control-sm choice-text" name="questions[0][choices][2][text]" placeholder="Choice C">
                                                             <button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>
                                                         </div>
+                                                        <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_0_2" accept="image/*,video/*,audio/*">
                                                     </td>
                                                     <td>
                                                         <input type="number" class="form-control form-control-sm" name="questions[0][choices][2][point]" value="0" min="0" required>
@@ -323,10 +330,11 @@ if (!empty($test_id)) {
                                                         <input class="form-check-input true-radio" type="radio" name="questions[0][choice_true_index]" value="3">
                                                     </td>
                                                     <td>
-                                                        <div class="input-group input-group-sm">
+                                                        <div class="input-group input-group-sm mb-1">
                                                             <input type="text" class="form-control form-control-sm choice-text" name="questions[0][choices][3][text]" placeholder="Choice D">
                                                             <button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>
                                                         </div>
+                                                        <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_0_3" accept="image/*,video/*,audio/*">
                                                     </td>
                                                     <td>
                                                         <input type="number" class="form-control form-control-sm" name="questions[0][choices][3][point]" value="0" min="0" required>
@@ -563,10 +571,11 @@ function processImportText() {
                     <input class="form-check-input true-radio" type="radio" name="questions[${nextIndex}][choice_true_index]" value="${cIndex}" ${choice.isTrue ? 'checked' : ''}>
                 </td>
                 <td>
-                    <div class="input-group input-group-sm">
+                    <div class="input-group input-group-sm mb-1">
                         <input type="text" class="form-control form-control-sm choice-text" name="questions[${nextIndex}][choices][${cIndex}][text]" placeholder="Choice ${label}" value="${escapeHtml(choice.text)}" required>
                         ${cIndex >= 2 ? `<button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>` : ''}
                     </div>
+                    <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_${nextIndex}_${cIndex}" accept="image/*,video/*,audio/*">
                 </td>
                 <td>
                     <input type="number" class="form-control form-control-sm" name="questions[${nextIndex}][choices][${cIndex}][point]" value="${choice.point}" min="0" required>
@@ -659,7 +668,8 @@ function getQuestionCardHtml(index) {
                                     <input class="form-check-input true-radio" type="radio" name="questions[${index}][choice_true_index]" value="0" checked>
                                 </td>
                                 <td>
-                                    <input type="text" class="form-control form-control-sm choice-text" name="questions[${index}][choices][0][text]" placeholder="Choice A" required>
+                                    <input type="text" class="form-control form-control-sm choice-text mb-1" name="questions[${index}][choices][0][text]" placeholder="Choice A" required>
+                                    <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_${index}_0" accept="image/*,video/*,audio/*">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control form-control-sm" name="questions[${index}][choices][0][point]" value="10" min="0" required>
@@ -670,7 +680,8 @@ function getQuestionCardHtml(index) {
                                     <input class="form-check-input true-radio" type="radio" name="questions[${index}][choice_true_index]" value="1">
                                 </td>
                                 <td>
-                                    <input type="text" class="form-control form-control-sm choice-text" name="questions[${index}][choices][1][text]" placeholder="Choice B" required>
+                                    <input type="text" class="form-control form-control-sm choice-text mb-1" name="questions[${index}][choices][1][text]" placeholder="Choice B" required>
+                                    <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_${index}_1" accept="image/*,video/*,audio/*">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control form-control-sm" name="questions[${index}][choices][1][point]" value="0" min="0" required>
@@ -681,10 +692,11 @@ function getQuestionCardHtml(index) {
                                     <input class="form-check-input true-radio" type="radio" name="questions[${index}][choice_true_index]" value="2">
                                 </td>
                                 <td>
-                                    <div class="input-group input-group-sm">
+                                    <div class="input-group input-group-sm mb-1">
                                         <input type="text" class="form-control form-control-sm choice-text" name="questions[${index}][choices][2][text]" placeholder="Choice C">
                                         <button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>
                                     </div>
+                                    <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_${index}_2" accept="image/*,video/*,audio/*">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control form-control-sm" name="questions[${index}][choices][2][point]" value="0" min="0" required>
@@ -695,10 +707,11 @@ function getQuestionCardHtml(index) {
                                     <input class="form-check-input true-radio" type="radio" name="questions[${index}][choice_true_index]" value="3">
                                 </td>
                                 <td>
-                                    <div class="input-group input-group-sm">
+                                    <div class="input-group input-group-sm mb-1">
                                         <input type="text" class="form-control form-control-sm choice-text" name="questions[${index}][choices][3][text]" placeholder="Choice D">
                                         <button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>
                                     </div>
+                                    <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_${index}_3" accept="image/*,video/*,audio/*">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control form-control-sm" name="questions[${index}][choices][3][point]" value="0" min="0" required>
@@ -807,6 +820,11 @@ function reindexAllQuestions() {
                 if (pointInput) {
                     pointInput.name = `questions[${qIndex}][choices][${cIndex}][point]`;
                 }
+                
+                const fileInput = row.querySelector('input[type="file"]');
+                if (fileInput) {
+                    fileInput.name = `questions_choice_media_files_${qIndex}_${cIndex}`;
+                }
             });
         }
         
@@ -844,10 +862,11 @@ function addChoiceRowToQuestion(btn) {
             <input class="form-check-input true-radio" type="radio" name="questions_placeholder_radio" value="${rowCount}">
         </td>
         <td>
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm mb-1">
                 <input type="text" class="form-control form-control-sm choice-text" placeholder="Choice ${label}">
                 <button type="button" class="btn btn-sm btn-danger remove-choice-btn" onclick="removeChoiceRow(this)"><i class="bi bi-trash"></i></button>
             </div>
+            <input type="file" class="form-control form-control-sm" name="questions_choice_media_files_X_${rowCount}" accept="image/*,video/*,audio/*">
         </td>
         <td>
             <input type="number" class="form-control form-control-sm" value="0" min="0" required>
@@ -964,6 +983,12 @@ function reindexChoices(tbodyId, mode) {
         if (pointInput) {
             pointInput.name = `choices[${i}][point]`;
         }
+        
+        // Update edit file input name
+        const editFileInput = tr.querySelector('input[type="file"]');
+        if (editFileInput) {
+            editFileInput.name = `edit_choice_media_files_${i}`;
+        }
     });
 }
 
@@ -980,10 +1005,11 @@ function addChoiceRow(tbodyId, mode) {
             <input class="form-check-input" type="radio" name="choice_true_index" value="${rowCount}">
         </td>
         <td>
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm mb-1">
                 <input type="text" class="form-control form-control-sm ${mode === 'edit' ? 'edit-choice-text-input' : 'choice-text-input'}" name="choices[${rowCount}][text]" placeholder="Choice ${label}">
                 <button type="button" class="btn btn-danger" onclick="this.closest('tr').remove(); reindexChoices('${tbodyId}', '${mode}');"><i class="bi bi-trash"></i></button>
             </div>
+            <input type="file" class="form-control form-control-sm" name="edit_choice_media_files_${rowCount}" accept="image/*,video/*,audio/*">
         </td>
         <td>
             <input type="number" class="form-control form-control-sm" name="choices[${rowCount}][point]" value="0" min="0" required>
@@ -1068,10 +1094,20 @@ function loadChoices(questionId, questionType) {
                         <input class="form-check-input" type="radio" name="choice_true_index" value="${i}" ${isTrue || (i === 0 && choices.length === 0) ? 'checked' : ''}>
                     </td>
                     <td>
-                        <div class="input-group input-group-sm">
+                        <div class="input-group input-group-sm mb-1">
                             <input type="text" class="form-control form-control-sm edit-choice-text-input" name="choices[${i}][text]" value="${escapeHtml(textVal)}" placeholder="Choice ${label}" ${i < 2 && questionType === 'Multiple Choice' ? 'required' : ''}>
                             ${i >= 2 ? `<button type="button" class="btn btn-danger" onclick="this.closest('tr').remove(); reindexChoices('edit_choices_tbody', 'edit');"><i class="bi bi-trash"></i></button>` : ''}
                         </div>
+                        ${choice.media_file ? `
+                            <div class="mb-1 d-flex align-items-center justify-content-between" style="font-size: 10px; background:#f8f9fa; padding:2px 5px; border-radius:3px;">
+                                <span><i class="bi bi-image text-primary"></i> <a href="${choice.media_file}" target="_blank">View File</a></span>
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" name="choices[${i}][remove_media]" value="1" id="rm_media_${i}">
+                                    <label class="form-check-label text-danger" for="rm_media_${i}">Remove</label>
+                                </div>
+                            </div>
+                        ` : ''}
+                        <input type="file" class="form-control form-control-sm" name="edit_choice_media_files_${i}" accept="image/*,video/*,audio/*">
                     </td>
                     <td>
                         <input type="number" class="form-control form-control-sm" name="choices[${i}][point]" value="${pointVal}" min="0" required>
