@@ -1,3 +1,7 @@
+<script>
+    document.location.href = 'login.php';
+</script>
+<?php return; ?>
 <!DOCTYPE html>
 <html lang="en">
 

@@ -207,7 +207,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $test) {
         <?php endif; ?>
     </div>
 </div>
-
+<script>
+if (window.location.href.includes('mtc.armadamix.id')) {
+    // Disable right-click
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    }, false);
+    // Disable Ctrl+Shift+I and F12
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey && e.shiftKey && e.key === 'I') || e.key === 'F12') {
+            e.preventDefault();
+        }
+    }, false);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -49,11 +49,11 @@ include 'functions/auto-cek-login-html.php';
             <footer>
                 <div class="footer clearfix mb-0 text-muted">
                     <div class="float-start">
-                        <p><?= date('Y'); ?> &copy; Sadewa</p>
+                        <p><?= date('Y'); ?> &copy; Armada Mix Grup</p>
                     </div>
                     <div class="float-end">
                         <p>Crafted with <span class="text-danger"><i class="bi bi-heart"></i></span> by <a
-                                href="">Stevanus Cahya Adveni</a></p>
+                                href="">IT Armada Mix Grup</a></p>
                     </div>
                 </div>
             </footer>

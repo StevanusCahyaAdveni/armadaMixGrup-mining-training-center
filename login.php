@@ -137,11 +137,11 @@
                                 </button>
                             </div>
 
-                            <div class="login-footer">
+                            <!-- <div class="login-footer">
                                 <small>
                                     Don't have an account? <a href="register.php" class="text-decoration-none">Sign Up</a>
                                 </small>
-                            </div>
+                            </div> -->
                         </form>
                     </div>
                 </div>
