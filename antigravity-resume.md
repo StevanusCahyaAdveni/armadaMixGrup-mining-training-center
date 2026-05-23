@@ -311,3 +311,28 @@ Sesi ini berfokus pada pembuatan halaman Dashboard Admin yang komprehensif dan p
   - Semua query menggunakan querySecure() dengan prepared statements.
   - ApexCharts diinisialisasi via inline script di akhir dashboard.php (bukan di dashboard.js global) untuk menghindari error DOM jika elemen chart tidak ditemukan di halaman lain.
   - CSS kustom scoped dalam style tag di dalam dashboard.php (.welcome-card, .metric-card, .icon-box, .avatar-sm).
+
+### 17. Penambahan Fitur Cetak Hasil Ujian CBT (exam/finish.php)
+* **File Terkait**: [finish.php](file:///d:/xampp/htdocs/armadaMixGrup/armadaMixGrup-mtc/exam/finish.php)
+* **Deskripsi**: Menambahkan fitur cetak (print) hasil nilai secara langsung di sisi kandidat setelah mereka menyelesaikan ujian.
+* **Detail**:
+  - Menambahkan tombol **Cetak Hasil** (window.print()) bersama tombol lain di bagian akhir halaman.
+  - Mengimplementasikan stylesheet @media print CSS kustom. Saat halaman dicetak atau disimpan sebagai PDF, elemen yang mengganggu seperti *background body*, *box-shadow*, dan kontrol navigasi (class .no-print) akan otomatis disembunyikan sehingga menghasilkan unduhan dokumen PDF yang minimalis dan rapi.
+
+### 18. Fitur Upload Lampiran/Gambar pada Pilihan Ganda (Choice)
+* **File Terkait**: 
+  - pages/test/test-question.php
+  - ctions/pages/test/test-question.php
+  - exam/exam-cbt.php
+* **Deskripsi**: Menambahkan fungsionalitas agar setiap opsi pilihan ganda dapat memiliki lampiran berupa gambar atau media yang akan dirender di sisi peserta ujian.
+* **Detail**:
+  - Modifikasi schema database 	est_question_choices untuk menyimpan jalur file lampiran media pilihan ganda.
+  - Modifikasi UI form tambah dan edit bank soal agar menampilkan input <input type=" file\> pada masing-masing baris pilihan (A, B, C, D).
+ - Backend handling (Bulk Insert & Edit) di action file untuk memproses upload file pilihan ganda menggunakan helper uploadFile() yang sudah ada dan menyimpan ke direktori ssets/test_medias/.
+ - Sistem otomatis membersihkan sisa file yang dihapus/ditimpa dari server/disk lokal unlink().
+ - Modifikasi UI di exam/exam-cbt.php untuk menampilkan gambar/media di atas teks opsi jawaban saat kandidat mengerjakan ujian CBT.
+
+* **Database Migration Query**:
+`sql
+ALTER TABLE test_question_choices ADD COLUMN media_file VARCHAR(255) DEFAULT NULL COMMENT 'Path to attached choice image/file' AFTER choice_text;
+`
