@@ -12,12 +12,13 @@ $requestUri = $_SERVER['REQUEST_URI'] ?? '';
 $fullUrl = $protocol . $domain . $requestUri;
 
 // Konfigurasi Database (Local vs Server)
-if (strpos($fullUrl, 'mining-training-center.armadamix.id') !== false) {
+if (strpos($fullUrl, 'mtc.armadamix.id') !== false) {
     // Konfigurasi Server / Production (Ubah sesuai kredensial server Anda)
-    $dbHost = 'mysql.example.com';
-    $dbUser = 'prod_user';
-    $dbPass = 'prod_password';
-    $dbName = 'prod_database';
+    $dbHost = 'localhost';
+    $dbUser = 'mtc_armadamix_id';
+    $dbPass = '2KHmhr7E3JFKwyyZ';
+    $dbName = 'mtc_armadamix_id';
+    error_reporting(0);
 } else {
     // Konfigurasi Local / Development
     $dbHost = 'localhost';

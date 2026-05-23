@@ -42,7 +42,7 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                     </a>
                 </li>
                 <!-- End Example New Menu in Side Bar -->
-                <?php if (strpos($fullUrl, 'mining-training-center.armadamix.id') === false) { ?>
+                <?php if (strpos($fullUrl, 'mtc.armadamix.id') === false) { ?>
                     <li class="sidebar-title">CRUD</li>
                     <?php
                     $sidebarPage = "crud-generate";
