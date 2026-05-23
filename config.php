@@ -9,7 +9,7 @@
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? "https://" : "http://";
 $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
-$fullUrl = $protocol . $domain . $requestUri;
+$fullUrl = $protocol . $domain . $requestUri; 
 
 // Konfigurasi Database (Local vs Server)
 if (strpos($fullUrl, 'mtc.armadamix.id') !== false) {
