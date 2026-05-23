@@ -1,0 +1,25 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main  # Setiap kamu push ke branch main, dia jalan otomatis
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: 195.88.211.139
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /www/wwwroot/mtc.armadamix.id
+            git pull origin main
+            # Jika nanti pakai Python, tambahkan baris di bawah ini:
+            # source venv/bin/activate && pip install -r requirements.txt
