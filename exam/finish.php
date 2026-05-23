@@ -93,6 +93,19 @@ if ($essayQuery && $essayRow = mysqli_fetch_assoc($essayQuery)) {
             flex-direction: column;
             margin: 0 auto;
         }
+        @media print {
+            body {
+                background: none !important;
+            }
+            .glass-panel {
+                box-shadow: none !important;
+                border: none !important;
+                background: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="d-flex align-items-center justify-content-center py-5">
@@ -168,11 +181,14 @@ if ($essayQuery && $essayRow = mysqli_fetch_assoc($essayQuery)) {
             </div>
         <?php endif; ?>
 
-        <div class="pt-2">
-            <a href="index.php?test_id=<?= htmlspecialchars($session['test_id']) ?>" class="btn btn-outline-primary px-4 py-2 rounded-3 me-2" style="font-size: 14px;">
+        <div class="pt-2 no-print">
+            <button type="button" class="btn btn-secondary px-4 py-2 rounded-3 me-2 mb-2" onclick="window.print()" style="font-size: 14px;">
+                <i class="bi bi-printer me-1"></i> Cetak Hasil
+            </button>
+            <a href="index.php?test_id=<?= htmlspecialchars($session['test_id']) ?>" class="btn btn-outline-primary px-4 py-2 rounded-3 me-2 mb-2" style="font-size: 14px;">
                 <i class="bi bi-arrow-clockwise me-1"></i> Mulai Ulang / Baru
             </a>
-            <button type="button" class="btn btn-primary-custom px-4 py-2 shadow" onclick="window.close()" style="font-size: 14px;">
+            <button type="button" class="btn btn-primary-custom px-4 py-2 shadow mb-2" onclick="window.close()" style="font-size: 14px;">
                 <i class="bi bi-x-circle me-1"></i> Keluar
             </button>
         </div>

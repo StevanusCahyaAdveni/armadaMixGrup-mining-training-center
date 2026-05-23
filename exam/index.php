@@ -197,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $test) {
                         <option value="">-- Pilih Peran --</option>
                         <option value="rekrutmen" <?= (isset($_POST['role']) && $_POST['role'] === 'rekrutmen') ? 'selected' : '' ?>>Rekrutmen / Calon Karyawan</option>
                         <option value="karyawan" <?= (isset($_POST['role']) && $_POST['role'] === 'karyawan') ? 'selected' : '' ?>>Karyawan</option>
+                        <option value="karyawan (sudah on site)" <?= (isset($_POST['role']) && $_POST['role'] === 'karyawan (sudah on site)q') ? 'selected' : '' ?>>Karyawan (sudah on site)</option>
                     </select>
                 </div>
 

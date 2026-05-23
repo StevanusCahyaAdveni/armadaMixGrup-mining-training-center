@@ -363,9 +363,28 @@ if ($allAnswers) {
                 wrapper.className = `choice-item ${isSelected ? 'selected' : ''}`;
                 wrapper.onclick = function() { selectChoice(choice.id, wrapper); };
 
+                let mediaHtml = '';
+                if (choice.media_file && choice.media_file.trim() !== '') {
+                    // Check if it's an image based on extension for basic rendering
+                    const ext = choice.media_file.split('.').pop().toLowerCase();
+                    const mediaPath = '../' + choice.media_file;
+                    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) {
+                        mediaHtml = `<div class="mb-2"><img src="${mediaPath}" class="img-fluid rounded border shadow-sm" style="max-height:150px; object-fit:contain;" alt="Choice Media"></div>`;
+                    } else if (['mp4', 'webm', 'ogg'].includes(ext)) {
+                        mediaHtml = `<div class="mb-2"><video src="${mediaPath}" controls class="w-100 rounded" style="max-height: 150px;"></video></div>`;
+                    } else if (['mp3', 'wav', 'ogg'].includes(ext)) {
+                        mediaHtml = `<div class="mb-2"><audio src="${mediaPath}" controls class="w-100"></audio></div>`;
+                    } else {
+                        mediaHtml = `<div class="mb-2"><a href="${mediaPath}" target="_blank" class="badge bg-primary text-decoration-none"><i class="bi bi-file-earmark-arrow-down"></i> View Attached Media</a></div>`;
+                    }
+                }
+
                 wrapper.innerHTML = `
-                    <input type="radio" name="cbt_radio_choices" class="choice-radio-input form-check-input" value="${choice.id}" ${isSelected ? 'checked' : ''}>
-                    <div style="font-size: 14px;">${choice.choice_text}</div>
+                    <input type="radio" name="cbt_radio_choices" class="choice-radio-input form-check-input mt-1 d-none" value="${choice.id}" ${isSelected ? 'checked' : ''}>
+                    <div style="font-size: 14px; width:100%;">
+                        ${mediaHtml}
+                        <div>${choice.choice_text}</div>
+                    </div>
                 `;
                 inputSec.appendChild(wrapper);
             });
