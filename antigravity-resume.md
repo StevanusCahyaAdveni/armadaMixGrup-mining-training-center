@@ -336,3 +336,12 @@ Sesi ini berfokus pada pembuatan halaman Dashboard Admin yang komprehensif dan p
 `sql
 ALTER TABLE test_question_choices ADD COLUMN media_file VARCHAR(255) DEFAULT NULL COMMENT 'Path to attached choice image/file' AFTER choice_text;
 `
+
+### 19. Fitur Filter dan Export Excel Rekapan Ujian Kandidat
+* **File Terkait**: 
+  - pages/test/test-user-session.php
+* **Deskripsi**: Menambahkan fungsionalitas pencarian spesifik (filter lanjutan) pada daftar ujian kandidat serta menambahkan tombol export ke format CSV berdasarkan filter yang aktif.
+* **Detail**:
+  - Menambahkan input select nama ujian, input date range (tanggal mulai & akhir) untuk melengkapi pencarian umum.
+  - Memperbarui query backend di `test-user-session.php` agar dapat mengakomodasi filter dinamis tanpa merusak pagination `makePagination`.
+  - Mengubah penanganan export melalui file action terpisah (`actions/pages/test/export-user-session.php`) untuk menghindari konflik "headers already sent" dan menggunakan `fputcsv()` dengan delimiter pipe (`|`) untuk menghasilkan file CSV murni yang berisi data spesifik sesuai filter aktif.
