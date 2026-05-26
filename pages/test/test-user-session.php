@@ -450,16 +450,37 @@ if (!empty($sessionId)):
 <?php
 else:
     // ==========================================
-    // LIST VIEW
+    // LIST VIEW & EXPORT
     // ==========================================
     $search = isset($_GET['search']) ? sani($_GET['search']) : '';
-    $whereClause = '';
+    $filter_test_id = isset($_GET['test_id']) ? sani($_GET['test_id']) : '';
+    $filter_date_start = isset($_GET['date_start']) ? sani($_GET['date_start']) : '';
+    $filter_date_end = isset($_GET['date_end']) ? sani($_GET['date_end']) : '';
+
+    $whereConditions = [];
     if (!empty($search)) {
         $searchWildcard = '%' . $search . '%';
-        $whereClause = " WHERE u.fullname LIKE '$searchWildcard' OR u.email LIKE '$searchWildcard' OR t.title LIKE '$searchWildcard' OR u.role LIKE '$searchWildcard' OR s.status LIKE '$searchWildcard'";
+        $whereConditions[] = "(u.fullname LIKE '$searchWildcard' OR u.email LIKE '$searchWildcard' OR t.title LIKE '$searchWildcard' OR u.role LIKE '$searchWildcard' OR s.status LIKE '$searchWildcard')";
+    }
+    
+    if (!empty($filter_test_id)) {
+        $whereConditions[] = "s.test_id = '$filter_test_id'";
+    }
+    
+    if (!empty($filter_date_start)) {
+        $whereConditions[] = "DATE(s.datetime_start) >= '$filter_date_start'";
+    }
+    
+    if (!empty($filter_date_end)) {
+        $whereConditions[] = "DATE(s.datetime_start) <= '$filter_date_end'";
     }
 
-    $query = "SELECT s.id AS session_id, s.test_id, s.user_id, s.datetime_start, s.datetime_end, s.status, s.updated_at,
+    $whereClause = '';
+    if (count($whereConditions) > 0) {
+        $whereClause = " WHERE " . implode(" AND ", $whereConditions);
+    }
+
+    $baseQuery = "SELECT s.id AS session_id, s.test_id, s.user_id, s.datetime_start, s.datetime_end, s.status, s.updated_at,
                      t.title AS test_title, t.point_show,
                      u.fullname AS user_fullname, u.email AS user_email, u.role AS user_role
               FROM test_user_sessions s
@@ -467,7 +488,7 @@ else:
               LEFT JOIN users u ON s.user_id = u.id" . 
               $whereClause . " ORDER BY s.datetime_start DESC";
 
-    $pagination = makePagination($con, $query, 10);
+    $pagination = makePagination($con, $baseQuery, 10);
     ?>
 
     <!-- Alert Messages -->
@@ -485,14 +506,41 @@ else:
             <form method="GET" action="">
                 <input type="hidden" name="hal" value="test_test-user-session">
                 <div class="row g-2">
-                    <div class="col-10">
-                        <div class="input-group input-group-merge">
-                            <span class="input-group-text border-end-0 bg-white" style="border-radius: 12px 0 0 12px;"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0" style="border-radius: 0 12px 12px 0;" name="search" placeholder="Cari kandidat, email, judul tes, peran..." value="<?= htmlspecialchars($search) ?>">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px;">Pencarian Umum</label>
+                        <div class="input-group input-group-sm input-group-merge">
+                            <span class="input-group-text border-end-0 bg-white" style="border-radius: 8px 0 0 8px;"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" style="border-radius: 0 8px 8px 0;" name="search" placeholder="Nama, email..." value="<?= htmlspecialchars($search) ?>">
                         </div>
                     </div>
-                    <div class="col-2">
-                        <button type="submit" class="btn btn-primary w-100 shadow-sm rounded-pill fw-bold" style="padding-top: 8px; padding-bottom: 8px;">Cari</button>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px;">Filter Ujian</label>
+                        <select name="test_id" class="form-select form-select-sm" style="border-radius: 8px;">
+                            <option value="">-- Semua Tes --</option>
+                            <?php
+                            $testListRes = querySecure($con, "SELECT id, title FROM tests ORDER BY title ASC", [], '');
+                            while($t = mysqli_fetch_assoc($testListRes)){
+                                $sel = ($filter_test_id == $t['id']) ? 'selected' : '';
+                                echo "<option value='{$t['id']}' {$sel}>".htmlspecialchars($t['title'])."</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px;">Tanggal Mulai</label>
+                        <input type="date" name="date_start" class="form-control form-control-sm" style="border-radius: 8px;" value="<?= htmlspecialchars($filter_date_start) ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px;">Tanggal Akhir</label>
+                        <input type="date" name="date_end" class="form-control form-control-sm" style="border-radius: 8px;" value="<?= htmlspecialchars($filter_date_end) ?>">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end gap-1">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm fw-bold" style="border-radius: 8px; padding-top: 6px; padding-bottom: 6px;" title="Terapkan Filter">
+                            <i class="bi bi-funnel-fill"></i> Filter
+                        </button>
+                        <button type="submit" formaction="actions/pages/test/export-user-session.php" formtarget="_blank" name="export_excel" value="1" class="btn btn-success btn-sm w-100 shadow-sm fw-bold" style="border-radius: 8px; padding-top: 6px; padding-bottom: 6px;" title="Unduh Excel">
+                            <i class="bi bi-file-earmark-excel-fill"></i> Excel
+                        </button>
                     </div>
                 </div>
             </form>
