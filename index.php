@@ -31,13 +31,19 @@ include 'functions/auto-cek-login-html.php';
 
 <body>
     <div id="app">
-        <?php include 'sidebar.php'; ?>
+        <?php if (!isset($_GET['iframe'])): ?>
+            <?php include 'sidebar.php'; ?>
+        <?php else: ?>
+            <!-- <style>#main { margin-left: 0 !important; padding: 1rem !important; } .page-heading { display: none; }</style> -->
+        <?php endif; ?>
         <div id="main">
+            <?php if (!isset($_GET['iframe'])): ?>
             <header class="mb-3">
                 <a href="#" class="burger-btn d-block" style="max-width: 100px;">
                     <i class="bi bi-justify fs-3"></i>
                 </a>
             </header>
+            <?php endif; ?>
 
             <div class="page-heading mb-0">
                 <h3><?php echo $textTitle; ?></h3>
@@ -46,6 +52,7 @@ include 'functions/auto-cek-login-html.php';
                 <?php include $content; ?>
             </div>
 
+            <?php if (!isset($_GET['iframe'])): ?>
             <footer>
                 <div class="footer clearfix mb-0 text-muted">
                     <div class="float-start">
@@ -57,6 +64,7 @@ include 'functions/auto-cek-login-html.php';
                     </div>
                 </div>
             </footer>
+            <?php endif; ?>
         </div>
     </div>
 
