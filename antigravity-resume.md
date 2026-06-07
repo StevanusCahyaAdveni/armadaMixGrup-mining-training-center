@@ -345,3 +345,44 @@ ALTER TABLE test_question_choices ADD COLUMN media_file VARCHAR(255) DEFAULT NUL
   - Menambahkan input select nama ujian, input date range (tanggal mulai & akhir) untuk melengkapi pencarian umum.
   - Memperbarui query backend di `test-user-session.php` agar dapat mengakomodasi filter dinamis tanpa merusak pagination `makePagination`.
   - Mengubah penanganan export melalui file action terpisah (`actions/pages/test/export-user-session.php`) untuk menghindari konflik "headers already sent" dan menggunakan `fputcsv()` dengan delimiter pipe (`|`) untuk menghasilkan file CSV murni yang berisi data spesifik sesuai filter aktif.
+
+### 20. Penambahan Gaji Pokok & Tunjangan Tetap pada Tabel Employees
+* **File Terkait**: 
+  - database/employees_agdi_20260606030906.sql
+  - pages/employee/employees.php
+  -  ctions/pages/employee/employees.php
+* **Deskripsi**: Menambahkan input form, proses query, dan penyesuaian schema database untuk menampung dua data baru yaitu Gaji Pokok dan Tunjangan Tetap pada entri tabel employees.
+* **Detail**:
+  - `ALTER TABLE employees ADD COLUMN gaji_pokok INT DEFAULT 0, ADD COLUMN tunjangan_tetap INT DEFAULT 0`.
+  - Pembaruan UI modal Add dan Edit pada `pages/employee/employees.php` untuk menampilkan field "Gaji Pokok" dan "Tunjangan Tetap" sebagai input angka bulat.
+  - Pembaruan tabel view agar dapat menampilkan data tersebut pada baris data utama.
+  - Memperbarui query backend di  ctions/pages/employee/employees.php (sisi INSERT maupun UPDATE) agar nilai gaji_pokok dan tunjangan_tetap tersimpan dengan baik di database.
+
+### 21. Implementasi Fitur Timesheet & Rekap Gaji (Payroll)
+* **File Terkait**: 
+  - database/settings.sql (Tabel Baru)
+  - database/employee_timesheets.sql (Tabel Baru)
+  - pages/employee/timesheets.php (Halaman Baru)
+  - ctions/pages/employee/timesheets.php (Fungsi Baru)
+  - pages/employee/payroll.php (Halaman Baru)
+  - sidebar.php
+* **Deskripsi**: Menambahkan sistem komprehensif untuk penginputan Hour Meter harian (Timesheet) beserta ritase & solar, dan Rekap Gaji (Payroll).
+* **Detail**:
+  - Membuat tabel settings untuk menyimpan konfigurasi sistem secara dinamis (seperti 	arif_hm bernilai 17000).
+  - Membuat tabel employee_timesheets dengan kolom hm_awal, hm_akhir, 
+est_start, 
+est_end, 
+itase, dan solar.
+  - Sistem otomatis mengkalkulasi Total HM (mesin menyala), Ist HM (konversi istirahat), dan HMC (total jam yang dibayarkan) saat proses simpan *timesheet*.
+  - Menambahkan menu Timesheets (HM) di sidebar. Halaman ini digunakan oleh HR untuk mendata aktivitas alat berat harian. Terdapat fitur filter rentang tanggal, search, Add, dan Edit.
+  - Menambahkan menu Rekap Gaji (Payroll). Halaman ini berisi form filter Mulai Tanggal sampai Sampai Tanggal. Sistem akan memproses dan menampilkan data *Take Home Pay* per karyawan berdasarkan rumus: Gaji Pokok + Tunjangan Tetap + (Total HMC � Tarif HM).
+  - **Catatan Aturan Input HM**: Saat menginput nilai HM Awal dan HM Akhir dari data Excel ke sistem, user harus memasukkan angka murni (tanpa tanda titik ribuan). Contoh: Data 2.645,00 di Excel harus diinput sebagai 2645 atau 2645.00 agar kalkulasi selisihnya tepat.
+
+### 07 Juni 2026: Sistem Lembur
+
+1. **Integrasi Sistem Lembur (Overtime)**:
+   - Dibuat tabel employee_overtimes untuk mencatat data lembur dengan format UUID.
+   - Perhitungan gaji lembur disesuaikan dengan aturan: Rp 19.505/jam; jam pertama dikali 1.5, jam berikutnya dikali 2.0.
+   - Halaman employee-overtime.php menggunakan input dropdown <select> untuk shift.
+   - Action handler memastikan pengalihan (redirect) yang tepat menggunakan document.referrer sehingga state iframe tetap terjaga.
+   - Rekap Gaji (payroll.php) ditambahkan kolom "Uang Lembur" yang otomatis menjumlahkan nilai lembur per karyawan berdasarkan rentang tanggal.
