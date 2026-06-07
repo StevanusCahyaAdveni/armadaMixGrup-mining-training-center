@@ -41,6 +41,33 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>User Management</span>
                     </a>
                 </li>
+                <?php
+                $sidebarPage = "employee_employees";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-people-fill"></i>
+                        <span>Employee Management</span>
+                    </a>
+                </li>
+                <?php
+                $sidebarPage = "employee_timesheets";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-clock-history"></i>
+                        <span>Timesheets (HM)</span>
+                    </a>
+                </li>
+                <?php
+                $sidebarPage = "employee_payroll";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-wallet2"></i>
+                        <span>Rekap Gaji (Payroll)</span>
+                    </a>
+                </li>
                 <!-- End Example New Menu in Side Bar -->
                 <?php if (strpos($fullUrl, 'mtc.armadamix.id') === false) { ?>
                     <li class="sidebar-title">CRUD</li>
