@@ -21,6 +21,7 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $rest_end = !empty($_POST['rest_end']) ? sani($_POST['rest_end']) : null;
     $ritase = (int) $_POST['ritase'];
     $solar = (float) $_POST['solar'];
+    $keterangan = !empty($_POST['keterangan']) ? sani($_POST['keterangan']) : null;
 
     // Calculations
     $total_hm = $hm_akhir - $hm_awal;
@@ -42,16 +43,23 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
 
     if (isset($_POST['addData'])) {
         $id = generate_uuid();
-        $query = "INSERT INTO employee_timesheets (id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $params = [$id, $employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive];
-        $types = "sssssddssiddddii";
+        $query = "INSERT INTO employee_timesheets (id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $params = [$id, $employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan];
+        $types = "sssssddssiddddiis";
         
         if (executeSecure($con, $query, $params, $types)) {
-            redirectWithMessage('../?hal=employee_timesheets', 'Data timesheet berhasil ditambahkan!', 'success');
+            $_SESSION['message'] = 'Data timesheet berhasil ditambahkan!';
+            $_SESSION['message_type'] = 'success';
         } else {
-            redirectWithMessage('../?hal=employee_timesheets', 'Gagal menambahkan data!', 'error');
+            $_SESSION['message'] = 'Gagal menambahkan data!';
+            $_SESSION['message_type'] = 'error';
         }
+        echo "
+            <script>
+                window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
+            </script>
+        ";
     } 
     elseif (isset($_POST['updateData'])) {
         $id = sani($_POST['id']);
@@ -59,16 +67,23 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
                     employee_id = ?, tanggal = ?, shift = ?, unit_id = ?, 
                     hm_awal = ?, hm_akhir = ?, rest_start = ?, rest_end = ?, 
                     ritase = ?, solar = ?, total_hm = ?, ist_hm = ?, hmc = ?, 
-                    applied_hm_rate = ?, earned_hm_incentive = ? 
+                    applied_hm_rate = ?, earned_hm_incentive = ?, keterangan = ? 
                   WHERE id = ?";
-        $params = [$employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $id];
-        $types = "ssssddssiddddiis";
+        $params = [$employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan, $id];
+        $types = "ssssddssiddddiiss";
         
         if (executeSecure($con, $query, $params, $types)) {
-            redirectWithMessage('../?hal=employee_timesheets', 'Data timesheet berhasil diupdate!', 'success');
+            $_SESSION['message'] = 'Data timesheet berhasil diupdate!';
+            $_SESSION['message_type'] = 'success';
         } else {
-            redirectWithMessage('../?hal=employee_timesheets', 'Gagal mengupdate data!', 'error');
+            $_SESSION['message'] = 'Gagal mengupdate data!';
+            $_SESSION['message_type'] = 'error';
         }
+        echo "
+            <script>
+                window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
+            </script>
+        ";
     }
 }
 
@@ -76,9 +91,16 @@ if (isset($_GET['delete'])) {
     $id = sani($_GET['delete']);
     $query = "DELETE FROM employee_timesheets WHERE id = ?";
     if (executeSecure($con, $query, [$id], "s")) {
-        redirectWithMessage('../?hal=employee_timesheets', 'Data timesheet berhasil dihapus!', 'success');
+        $_SESSION['message'] = 'Data timesheet berhasil dihapus!';
+        $_SESSION['message_type'] = 'success';
     } else {
-        redirectWithMessage('../?hal=employee_timesheets', 'Gagal menghapus data!', 'error');
+        $_SESSION['message'] = 'Gagal menghapus data!';
+        $_SESSION['message_type'] = 'error';
     }
+    echo "
+        <script>
+            window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
+        </script>
+    ";
 }
 ?>
