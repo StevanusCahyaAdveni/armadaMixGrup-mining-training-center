@@ -2,8 +2,20 @@
 include 'functions/pagination.php';
 $search = isset($_GET['search']) ? sani($_GET['search']) : '';
 $whereClause = '';
+$user_id_filter = '';
+
+if (isset($_GET['user_id'])) {
+    $uid = sani($_GET['user_id']);
+    $user_id_filter = $uid;
+    $whereClause = "WHERE t.employee_id = '$uid'";
+}
+
 if (!empty($search)) {
-    $whereClause = " WHERE e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%' OR t.tanggal LIKE '%$search%'";
+    if (empty($whereClause)) {
+        $whereClause = " WHERE (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%' OR t.tanggal LIKE '%$search%')";
+    } else {
+        $whereClause .= " AND (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%' OR t.tanggal LIKE '%$search%')";
+    }
 }
 
 $query = "SELECT t.*, e.full_name 
@@ -40,6 +52,12 @@ $pagination = makePagination($con, $query, 10);
             <form method="GET" action="">
                 <input type="hidden" name="hal" value="employee_timesheets">
                 <div class="row g-1">
+                    <?php if (isset($_GET['iframe'])): ?>
+                        <input type="hidden" name="iframe" value="1">
+                    <?php endif; ?>
+                    <?php if (isset($_GET['user_id'])): ?>
+                        <input type="hidden" name="user_id" value="<?= htmlspecialchars($_GET['user_id']) ?>">
+                    <?php endif; ?>
                     <div class="col-10">
                         <input type="text" class="form-control form-control-sm" name="search" placeholder="Cari nama, unit, atau tanggal (YYYY-MM-DD)..." value="<?= htmlspecialchars($search) ?>">
                     </div>
@@ -68,6 +86,7 @@ $pagination = makePagination($con, $query, 10);
                             <th>HMC</th>
                             <th>Ritase</th>
                             <th>Solar</th>
+                            <th>Keterangan</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -97,6 +116,7 @@ $pagination = makePagination($con, $query, 10);
                                     <td class="fw-bold text-success"><?= htmlspecialchars($row['hmc']) ?></td>
                                     <td><?= htmlspecialchars($row['ritase']) ?></td>
                                     <td><?= htmlspecialchars($row['solar']) ?></td>
+                                    <td><?= htmlspecialchars($row['keterangan'] ?? '-') ?></td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-warning" onclick="upData(
                                             '<?= $row['id'] ?>',
@@ -109,7 +129,8 @@ $pagination = makePagination($con, $query, 10);
                                             '<?= htmlspecialchars($row['rest_start']) ?>',
                                             '<?= htmlspecialchars($row['rest_end']) ?>',
                                             '<?= htmlspecialchars($row['ritase']) ?>',
-                                            '<?= htmlspecialchars($row['solar']) ?>'
+                                            '<?= htmlspecialchars($row['solar']) ?>',
+                                            '<?= htmlspecialchars($row['keterangan'] ?? '') ?>'
                                         )">
                                             <i class="bi bi-pencil"></i>
                                         </button>
@@ -140,9 +161,9 @@ $pagination = makePagination($con, $query, 10);
             <form action="actions/?hal=employee_timesheets" method="POST">
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
                             <label class="form-label">Pilih Karyawan / Operator</label>
-                            <select class="form-select" name="employee_id" required>
+                            <select class="form-select" name="employee_id" <?= $user_id_filter ? '' : 'required' ?>>
                                 <option value="">-- Pilih --</option>
                                 <?php
                                 $empRes = querySecure($con, "SELECT id, full_name, employee_id FROM employees ORDER BY full_name ASC", [], '');
@@ -152,9 +173,12 @@ $pagination = makePagination($con, $query, 10);
                                 ?>
                             </select>
                         </div>
+                        <?php if ($user_id_filter): ?>
+                            <input type="hidden" name="employee_id" value="<?= htmlspecialchars($user_id_filter) ?>">
+                        <?php endif; ?>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Tanggal</label>
-                            <input type="date" class="form-control" name="tanggal" required>
+                            <input type="date" class="form-control" name="tanggal" value="<?= date('Y-m-d') ?>" required>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Shift</label>
@@ -196,6 +220,12 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="solar" value="0.00">
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Keterangan (Opsional)</label>
+                            <textarea class="form-control" name="keterangan" rows="2" placeholder="Contoh: Unit rusak ringan, cuaca hujan, dll..."></textarea>
+                        </div>
+                    </div>
                     <div class="alert alert-info py-2" style="font-size: 13px;">
                         <i class="bi bi-info-circle"></i> Sistem akan otomatis menghitung <b>Total HM</b> dan <b>HMC</b> dari data yang Anda masukkan di atas.
                     </div>
@@ -221,9 +251,9 @@ $pagination = makePagination($con, $query, 10);
                 <div class="modal-body">
                     <input type="hidden" name="id" id="edit_id">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
                             <label class="form-label">Pilih Karyawan / Operator</label>
-                            <select class="form-select" name="employee_id" id="edit_employee_id" required>
+                            <select class="form-select" name="employee_id" id="edit_employee_id" <?= $user_id_filter ? '' : 'required' ?>>
                                 <option value="">-- Pilih --</option>
                                 <?php
                                 $empRes2 = querySecure($con, "SELECT id, full_name, employee_id FROM employees ORDER BY full_name ASC", [], '');
@@ -233,6 +263,9 @@ $pagination = makePagination($con, $query, 10);
                                 ?>
                             </select>
                         </div>
+                        <?php if ($user_id_filter): ?>
+                            <input type="hidden" name="employee_id_hidden" id="edit_employee_id_hidden">
+                        <?php endif; ?>
                         <div class="col-md-3 mb-3">
                             <label class="form-label">Tanggal</label>
                             <input type="date" class="form-control" name="tanggal" id="edit_tanggal" required>
@@ -277,6 +310,12 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="solar" id="edit_solar">
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Keterangan (Opsional)</label>
+                            <textarea class="form-control" name="keterangan" id="edit_keterangan" rows="2" placeholder="Contoh: Unit rusak ringan, cuaca hujan, dll..."></textarea>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -288,9 +327,14 @@ $pagination = makePagination($con, $query, 10);
 </div>
 
 <script>
-function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar) {
+function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan) {
     document.getElementById('edit_id').value = id;
-    document.getElementById('edit_employee_id').value = employee_id;
+    if (document.getElementById('edit_employee_id')) {
+        document.getElementById('edit_employee_id').value = employee_id;
+    }
+    if (document.getElementById('edit_employee_id_hidden')) {
+        document.getElementById('edit_employee_id_hidden').value = employee_id;
+    }
     document.getElementById('edit_tanggal').value = tanggal;
     document.getElementById('edit_shift').value = shift;
     document.getElementById('edit_unit_id').value = unit_id;
@@ -300,6 +344,7 @@ function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, res
     document.getElementById('edit_rest_end').value = rest_end;
     document.getElementById('edit_ritase').value = ritase;
     document.getElementById('edit_solar').value = solar;
+    document.getElementById('edit_keterangan').value = keterangan;
     var editModal = new bootstrap.Modal(document.getElementById('editModal'));
     editModal.show();
 }
