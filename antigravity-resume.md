@@ -386,3 +386,16 @@ itase, dan solar.
    - Halaman employee-overtime.php menggunakan input dropdown <select> untuk shift.
    - Action handler memastikan pengalihan (redirect) yang tepat menggunakan document.referrer sehingga state iframe tetap terjaga.
    - Rekap Gaji (payroll.php) ditambahkan kolom "Uang Lembur" yang otomatis menjumlahkan nilai lembur per karyawan berdasarkan rentang tanggal.
+### 13 Juni 2026: Penambahan Keterangan & Integrasi Iframe Modal Timesheets
+
+1. **Penambahan Field Keterangan di Data HM (Timesheets)**:
+   - Membuat file migrasi database/employee_timesheet_alter.sql untuk menambahkan kolom keterangan TEXT.
+   - Modifikasi pages/employee/timesheets.php untuk menampilkan kolom Keterangan di tabel, serta menambahkan textarea *opsional* di modal Tambah dan Edit.
+   - Modifikasi ctions/pages/employee/timesheets.php untuk menangkap variabel keterangan dan menyimpannya saat eksekusi INSERT maupun UPDATE.
+   - Mengubah *default value* input tanggal di form Tambah Data agar otomatis terisi tanggal hari ini (date('Y-m-d')).
+
+2. **Penerapan Modal Iframe Timesheets di Halaman Payroll**:
+   - Modifikasi pages/employee/payroll.php dengan menambahkan struktur #modalTimesheets beserta fungsi JavaScript openTimesheetsModal(). Kolom **Total HMC** sekarang berupa tautan yang memicu modal ini.
+   - Menyempurnakan pages/employee/timesheets.php agar dapat dipanggil di dalam iframe. Ditambahkan deteksi URL parameter user_id dan iframe untuk mengaktifkan filter spesifik karyawan, menyembunyikan form pilihan karyawan (langsung menembakkan user_id tersembunyi), serta mem-bypass layout *sidebar*.
+   - Menyempurnakan ctions/pages/employee/timesheets.php agar pasca *Add/Update/Delete*, sistem mengarahkan ulang (*redirect*) menggunakan JavaScript document.referrer. Hal ini krusial untuk memastikan URL spesifik iframe (yang memuat parameter filter) tetap utuh dan modal tidak kehilangan konteks *state*-nya setelah submit.
+
