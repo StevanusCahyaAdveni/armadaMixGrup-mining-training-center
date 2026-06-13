@@ -75,7 +75,7 @@ $result = mysqli_query($con, $query);
         </div>
 
         <!-- Result Card -->
-        <div class="card p-3 shadow-sm">
+        <div class="card p-2 shadow-sm">
             <div class="mb-3 text-center d-none d-print-block">
                 <h4>Laporan Penggajian Karyawan</h4>
                 <p>Periode: <?= date('d M Y', strtotime($start_date)) ?> s/d <?= date('d M Y', strtotime($end_date)) ?></p>
@@ -125,7 +125,11 @@ $result = mysqli_query($con, $query);
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
                                 <td class="text-end">Rp <?= number_format($gaji_pokok, 0, ',', '.') ?></td>
                                 <td class="text-end">Rp <?= number_format($tunjangan, 0, ',', '.') ?></td>
-                                <td class="text-center fw-bold text-primary"><?= number_format($hmc, 2, ',', '.') ?> H</td>
+                                <td class="text-center fw-bold text-primary">
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalTimesheets" onclick="openTimesheetsModal('<?= $row['employee_id'] ?>')">
+                                        <?= number_format($hmc, 2, ',', '.') ?> H
+                                    </a>
+                                </td>
                                 <td class="text-end">Rp <?= number_format($insentif_hm, 0, ',', '.') ?></td>
                                 <td class="text-end">
                                     <a href="#" data-bs-toggle="modal" data-bs-target="#modalOvertime" onclick="openOvertimeModal('<?= $row['employee_id'] ?>')">
@@ -188,12 +192,30 @@ $result = mysqli_query($con, $query);
     </div>
 </div>
 
+<!-- Modal Timesheets -->
+<div class="modal fade" id="modalTimesheets" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detail Data HM (Timesheets) Karyawan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="iframeTimesheets" src="" style="width: 100%; height: 600px; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function openIncDecModal(userId) {
     document.getElementById('iframeIncDec').src = "?hal=employee_employee-salary-increasing-decreasing&user_id=" + userId + "&iframe=1";
 }
 function openOvertimeModal(userId) {
     document.getElementById('iframeOvertime').src = "?hal=employee_employee-overtime&user_id=" + userId + "&iframe=1";
+}
+function openTimesheetsModal(userId) {
+    document.getElementById('iframeTimesheets').src = "?hal=employee_timesheets&user_id=" + userId + "&iframe=1";
 }
 </script>
 
