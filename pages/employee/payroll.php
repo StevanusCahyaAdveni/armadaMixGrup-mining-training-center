@@ -26,9 +26,9 @@ $query = "SELECT
             (SELECT SUM(CASE WHEN category = 'increasing' THEN value WHEN category = 'decreasing' THEN -value ELSE value END) 
              FROM employee_salary_increasing_decreasing s 
              WHERE s.user_id = e.id AND s.date BETWEEN '$start_date' AND '$end_date') as penambah_pengurang,
-            (SELECT SUM(amount) 
-             FROM employee_overtimes o 
-             WHERE o.user_id = e.id AND DATE(o.overtime_start) BETWEEN '$start_date' AND '$end_date') as total_overtime
+            (SELECT SUM(overtime_amount) 
+             FROM employee_timesheets ts 
+             WHERE ts.employee_id = e.id AND ts.tanggal BETWEEN '$start_date' AND '$end_date') as total_overtime
           FROM employees e
           LEFT JOIN employee_timesheets t ON e.id = t.employee_id AND t.tanggal BETWEEN '$start_date' AND '$end_date'
           GROUP BY e.id
@@ -88,8 +88,8 @@ $result = mysqli_query($con, $query);
                             <th>No</th>
                             <th>NIK</th>
                             <th>Nama Karyawan</th>
-                            <th class="text-end">Gaji Pokok</th>
-                            <th class="text-end">Tunjangan Tetap</th>
+                            <!-- <th class="text-end">Gaji Pokok</th>
+                            <th class="text-end">Tunjangan Tetap</th> -->
                             <th class="text-center">Total HMC</th>
                             <th class="text-end">Insentif HM</th>
                             <th class="text-end">Uang Lembur</th>
@@ -123,8 +123,8 @@ $result = mysqli_query($con, $query);
                                 <td><?= $no++ ?></td>
                                 <td><?= htmlspecialchars($row['nik']) ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td class="text-end">Rp <?= number_format($gaji_pokok, 0, ',', '.') ?></td>
-                                <td class="text-end">Rp <?= number_format($tunjangan, 0, ',', '.') ?></td>
+                                <!-- <td class="text-end">Rp <?= number_format($gaji_pokok, 0, ',', '.') ?></td>
+                                <td class="text-end">Rp <?= number_format($tunjangan, 0, ',', '.') ?></td> -->
                                 <td class="text-center fw-bold text-primary">
                                     <a href="#" data-bs-toggle="modal" data-bs-target="#modalTimesheets" onclick="openTimesheetsModal('<?= $row['employee_id'] ?>')">
                                         <?= number_format($hmc, 2, ',', '.') ?> H
@@ -132,9 +132,7 @@ $result = mysqli_query($con, $query);
                                 </td>
                                 <td class="text-end">Rp <?= number_format($insentif_hm, 0, ',', '.') ?></td>
                                 <td class="text-end">
-                                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalOvertime" onclick="openOvertimeModal('<?= $row['employee_id'] ?>')">
-                                        Rp <?= number_format($total_overtime, 0, ',', '.') ?>
-                                    </a>
+                                    Rp <?= number_format($total_overtime, 0, ',', '.') ?>
                                 </td>
                                 <td class="text-end">
                                     <a href="#" data-bs-toggle="modal" data-bs-target="#modalIncDec" onclick="openIncDecModal('<?= $row['employee_id'] ?>')">
@@ -151,7 +149,7 @@ $result = mysqli_query($con, $query);
                     <?php if (mysqli_num_rows($result) > 0): ?>
                     <tfoot class="table-light fw-bold">
                         <tr>
-                            <td colspan="9" class="text-end">GRAND TOTAL PENGGAJIAN</td>
+                            <td colspan="7" class="text-end">GRAND TOTAL PENGGAJIAN</td>
                             <td class="text-end text-success">Rp <?= number_format($grand_total, 0, ',', '.') ?></td>
                         </tr>
                     </tfoot>
