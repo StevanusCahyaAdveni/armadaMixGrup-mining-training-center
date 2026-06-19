@@ -399,3 +399,45 @@ itase, dan solar.
    - Menyempurnakan pages/employee/timesheets.php agar dapat dipanggil di dalam iframe. Ditambahkan deteksi URL parameter user_id dan iframe untuk mengaktifkan filter spesifik karyawan, menyembunyikan form pilihan karyawan (langsung menembakkan user_id tersembunyi), serta mem-bypass layout *sidebar*.
    - Menyempurnakan ctions/pages/employee/timesheets.php agar pasca *Add/Update/Delete*, sistem mengarahkan ulang (*redirect*) menggunakan JavaScript document.referrer. Hal ini krusial untuk memastikan URL spesifik iframe (yang memuat parameter filter) tetap utuh dan modal tidak kehilangan konteks *state*-nya setelah submit.
 
+
+### 19 Juni 2026: Penggabungan Sistem Lembur ke Data HM (Timesheets)
+
+1. **Perubahan Skema Database**:
+   - Menambahkan kolom baru ke tabel employee_timesheets melalui file database/employee_timesheet_overtime_alter.sql: overtime_type, overtime_start, overtime_end, hm_awal_lembur, hm_akhir_lembur, dan overtime_amount.
+   - Menambahkan 	arif_lembur (Rp 19.505) ke dalam tabel settings.
+
+2. **Perubahan Antarmuka (UI)**:
+   - **pages/employee/timesheets.php**: Menambahkan *dropdown* Jenis Lembur (Tidak Ada, Lembur Biasa, Lembur Hari Libur), input Jam Mulai dan Jam Selesai lembur, serta input HM Awal/Akhir lembur. Nominal lembur otomatis muncul di tabel utama.
+   - **pages/employee/payroll.php**: Kolom Uang Lembur sekarang memuat hasil kalkulasi langsung dari tabel employee_timesheets dan *modal popup* overtime yang lama dinonaktifkan.
+
+3. **Logika Perhitungan & Rumus Lembur** (ctions/pages/employee/timesheets.php):
+   Sistem membaca durasi lembur (Jam Selesai - Jam Mulai), lalu dikalkulasi menggunakan tarif dasar dari database (	arif_lembur = Rp 19.505).
+
+   **A. Lembur Biasa**
+   - **1 jam pertama**: dikalikan 1.5. 
+   - **Jam berikutnya**: dikalikan 2.0.
+   - *Rumus Code*:
+     - Jika durasi <= 1 jam: Durasi * 1.5 * Tarif
+     - Jika durasi > 1 jam: (1 * 1.5 * Tarif) + ((Durasi - 1) * 2.0 * Tarif)
+
+   **B. Lembur Hari Libur (Tanggal Merah)**
+   - **Jam ke-1 s/d ke-7**: dikalikan 2.0.
+   - **Jam ke-8**: dikalikan 3.0.
+   - **Jam ke-9 dan seterusnya**: dikalikan 4.0.
+   - *Rumus Code*:
+     - Jika durasi <= 7 jam: Durasi * 2.0 * Tarif
+     - Jika durasi <= 8 jam: (7 * 2.0 * Tarif) + ((Durasi - 7) * 3.0 * Tarif)
+     - Jika durasi > 8 jam: (7 * 2.0 * Tarif) + (1 * 3.0 * Tarif) + ((Durasi - 8) * 4.0 * Tarif)
+
+Semua perhitungan ini otomatis diproses di *backend* sesaat sebelum data ditambahkan atau diperbarui.
+
+
+### Pembaruan Tambahan (Oleh User)
+- **Modifikasi Tampilan Payroll (pages/employee/payroll.php)**: Mengomentari (menyembunyikan) kolom **Gaji Pokok** dan **Tunjangan Tetap** pada tabel rekap gaji. Penyesuaian colspan pada baris Grand Total juga telah dilakukan dari 9 menjadi 7 agar tata letak tabel tetap rapi.
+
+
+- **Penyederhanaan Tabel Karyawan (employees)**: 
+  - Kolom join_date berhasil ditambahkan pada tabel database employees.
+  - Halaman pages/employee/employees.php dan file aksi ctions/pages/employee/employees.php dirombak agar *user interface* tabel dan *form* (Create & Update) hanya berfokus pada tiga informasi inti: **Full Name**, **Position**, dan **Join Date**.
+  - Kolom lain yang berlebihan dan tidak terpakai telah dibuang dari fungsi CRUD (Create, Read, Update, Delete) karyawan untuk membuat tabel dan penginputan data menjadi jauh lebih ringkas.
+
