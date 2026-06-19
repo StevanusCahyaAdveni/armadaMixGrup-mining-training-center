@@ -49,21 +49,8 @@ $pagination = makePagination($con, $query, 10);
                         <tr>
                             <th>No</th>
                             <th>Full Name</th>
-                            <th>Company Name</th>
                             <th>Position</th>
-                            <th>Employee Id</th>
-                            <th>BPJS Tenaker No</th>
-                            <th>BPJS Kes No</th>
-                            <th>Merdeka Sehat</th>
-                            <th>mine_permit</th>
-                            <th>Induction Schedule</th>
-                            <th>Mine Permit SCM</th>
-                            <th>Simper Teory Test</th>
-                            <th>Simper practice Test</th>
-                            <th>Simper OJT</th>
-                            <th>Simper Status</th>
-                            <th>Gaji Pokok</th>
-                            <th>Tunjangan Tetap</th>
+                            <th>Join Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -74,40 +61,14 @@ $pagination = makePagination($con, $query, 10);
                             <tr class="pt-1 pb-1">
                                 <td><?= $no++ ?></td>
                                 <td><?= htmlspecialchars($row['full_name']) ?></td>
-                                <td><?= htmlspecialchars($row['company_name']) ?></td>
                                 <td><?= htmlspecialchars($row['position']) ?></td>
-                                <td><?= htmlspecialchars($row['employee_id']) ?></td>
-                                <td><?= htmlspecialchars($row['bpjs_tenaker_no']) ?></td>
-                                <td><?= htmlspecialchars($row['bpjs_kes_no']) ?></td>
-                                <td><?= htmlspecialchars($row['merdeka_sehat']) ?></td>
-                                <td><?= htmlspecialchars($row['mine_permit']) ?></td>
-                                <td><?= htmlspecialchars($row['induction_schedule']) ?></td>
-                                <td><?= htmlspecialchars($row['mine_permit_scm']) ?></td>
-                                <td><?= htmlspecialchars($row['simper_teory_test']) ?></td>
-                                <td><?= htmlspecialchars($row['simper_practice_test']) ?></td>
-                                <td><?= htmlspecialchars($row['simper_ojt']) ?></td>
-                                <td><?= htmlspecialchars($row['simper_status']) ?></td>
-                                <td><?= htmlspecialchars($row['gaji_pokok']) ?></td>
-                                <td><?= htmlspecialchars($row['tunjangan_tetap']) ?></td>
+                                <td><?= htmlspecialchars($row['join_date'] ?? '') ?></td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-warning" onclick="upData(
                                         '<?= $row['id'] ?>',
                                         '<?= htmlspecialchars($row['full_name']) ?>',
-                                        '<?= htmlspecialchars($row['company_name']) ?>',
                                         '<?= htmlspecialchars($row['position']) ?>',
-                                        '<?= htmlspecialchars($row['employee_id']) ?>',
-                                        '<?= htmlspecialchars($row['bpjs_tenaker_no']) ?>',
-                                        '<?= htmlspecialchars($row['bpjs_kes_no']) ?>',
-                                        '<?= htmlspecialchars($row['merdeka_sehat']) ?>',
-                                        '<?= htmlspecialchars($row['mine_permit']) ?>',
-                                        '<?= htmlspecialchars($row['induction_schedule']) ?>',
-                                        '<?= htmlspecialchars($row['mine_permit_scm']) ?>',
-                                        '<?= htmlspecialchars($row['simper_teory_test']) ?>',
-                                        '<?= htmlspecialchars($row['simper_practice_test']) ?>',
-                                        '<?= htmlspecialchars($row['simper_ojt']) ?>',
-                                        '<?= htmlspecialchars($row['simper_status']) ?>',
-                                        '<?= htmlspecialchars($row['gaji_pokok']) ?>',
-                                        '<?= htmlspecialchars($row['tunjangan_tetap']) ?>'
+                                        '<?= htmlspecialchars($row['join_date'] ?? '') ?>'
                                     )">
                                         <i class="bi bi-pencil"></i>
                                     </button>
@@ -141,64 +102,12 @@ $pagination = makePagination($con, $query, 10);
                         <input type="text" class="form-control" name="full_name" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Company Name</label>
-                        <input type="text" class="form-control" name="company_name" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Position</label>
                         <input type="text" class="form-control" name="position" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Employee Id</label>
-                        <input type="text" class="form-control" name="employee_id" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">BPJS Tenaker No</label>
-                        <input type="text" class="form-control" name="bpjs_tenaker_no" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">BPJS Kes No</label>
-                        <input type="text" class="form-control" name="bpjs_kes_no" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Merdeka Sehat</label>
-                        <input type="text" class="form-control" name="merdeka_sehat" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">mine_permit</label>
-                        <input type="text" class="form-control" name="mine_permit" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Induction Schedule</label>
-                        <input type="date" class="form-control" name="induction_schedule" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Mine Permit SCM</label>
-                        <input type="text" class="form-control" name="mine_permit_scm" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper Teory Test</label>
-                        <input type="text" class="form-control" name="simper_teory_test" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper practice Test</label>
-                        <input type="text" class="form-control" name="simper_practice_test" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper OJT</label>
-                        <input type="text" class="form-control" name="simper_ojt" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper Status</label>
-                        <input type="text" class="form-control" name="simper_status" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Gaji Pokok</label>
-                        <input type="number" class="form-control" name="gaji_pokok" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tunjangan Tetap</label>
-                        <input type="number" class="form-control" name="tunjangan_tetap" required>
+                        <label class="form-label">Join Date</label>
+                        <input type="date" class="form-control" name="join_date">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -226,64 +135,12 @@ $pagination = makePagination($con, $query, 10);
                         <input type="text" class="form-control" name="full_name" id="edit_full_name" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Company Name</label>
-                        <input type="text" class="form-control" name="company_name" id="edit_company_name" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Position</label>
                         <input type="text" class="form-control" name="position" id="edit_position" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Employee Id</label>
-                        <input type="text" class="form-control" name="employee_id" id="edit_employee_id" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">BPJS Tenaker No</label>
-                        <input type="text" class="form-control" name="bpjs_tenaker_no" id="edit_bpjs_tenaker_no" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">BPJS Kes No</label>
-                        <input type="text" class="form-control" name="bpjs_kes_no" id="edit_bpjs_kes_no" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Merdeka Sehat</label>
-                        <input type="text" class="form-control" name="merdeka_sehat" id="edit_merdeka_sehat" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">mine_permit</label>
-                        <input type="text" class="form-control" name="mine_permit" id="edit_mine_permit" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Induction Schedule</label>
-                        <input type="date" class="form-control" name="induction_schedule" id="edit_induction_schedule" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Mine Permit SCM</label>
-                        <input type="text" class="form-control" name="mine_permit_scm" id="edit_mine_permit_scm" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper Teory Test</label>
-                        <input type="text" class="form-control" name="simper_teory_test" id="edit_simper_teory_test" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper practice Test</label>
-                        <input type="text" class="form-control" name="simper_practice_test" id="edit_simper_practice_test" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper OJT</label>
-                        <input type="text" class="form-control" name="simper_ojt" id="edit_simper_ojt" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Simper Status</label>
-                        <input type="text" class="form-control" name="simper_status" id="edit_simper_status" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Gaji Pokok</label>
-                        <input type="number" class="form-control" name="gaji_pokok" id="edit_gaji_pokok" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tunjangan Tetap</label>
-                        <input type="number" class="form-control" name="tunjangan_tetap" id="edit_tunjangan_tetap" required>
+                        <label class="form-label">Join Date</label>
+                        <input type="date" class="form-control" name="join_date" id="edit_join_date">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -296,24 +153,11 @@ $pagination = makePagination($con, $query, 10);
 </div>
 
 <script>
-function upData(id, full_name, company_name, position, employee_id, bpjs_tenaker_no, bpjs_kes_no, merdeka_sehat, mine_permit, induction_schedule, mine_permit_scm, simper_teory_test, simper_practice_test, simper_ojt, simper_status, gaji_pokok, tunjangan_tetap) {
+function upData(id, full_name, position, join_date) {
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_full_name').value = full_name;
-    document.getElementById('edit_company_name').value = company_name;
     document.getElementById('edit_position').value = position;
-    document.getElementById('edit_employee_id').value = employee_id;
-    document.getElementById('edit_bpjs_tenaker_no').value = bpjs_tenaker_no;
-    document.getElementById('edit_bpjs_kes_no').value = bpjs_kes_no;
-    document.getElementById('edit_merdeka_sehat').value = merdeka_sehat;
-    document.getElementById('edit_mine_permit').value = mine_permit;
-    document.getElementById('edit_induction_schedule').value = induction_schedule;
-    document.getElementById('edit_mine_permit_scm').value = mine_permit_scm;
-    document.getElementById('edit_simper_teory_test').value = simper_teory_test;
-    document.getElementById('edit_simper_practice_test').value = simper_practice_test;
-    document.getElementById('edit_simper_ojt').value = simper_ojt;
-    document.getElementById('edit_simper_status').value = simper_status;
-    document.getElementById('edit_gaji_pokok').value = gaji_pokok;
-    document.getElementById('edit_tunjangan_tetap').value = tunjangan_tetap;
+    document.getElementById('edit_join_date').value = join_date;
     var editModal = new bootstrap.Modal(document.getElementById('editModal'));
     editModal.show();
 }
