@@ -87,6 +87,7 @@ $pagination = makePagination($con, $query, 10);
                             <th>Ritase</th>
                             <th>Solar</th>
                             <th>Keterangan</th>
+                            <th>Uang Lembur</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -117,6 +118,7 @@ $pagination = makePagination($con, $query, 10);
                                     <td><?= htmlspecialchars($row['ritase']) ?></td>
                                     <td><?= htmlspecialchars($row['solar']) ?></td>
                                     <td><?= htmlspecialchars($row['keterangan'] ?? '-') ?></td>
+                                    <td class="text-end fw-bold text-success">Rp <?= number_format($row['overtime_amount'] ?? 0, 0, ',', '.') ?></td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-warning" onclick="upData(
                                             '<?= $row['id'] ?>',
@@ -130,7 +132,12 @@ $pagination = makePagination($con, $query, 10);
                                             '<?= htmlspecialchars($row['rest_end']) ?>',
                                             '<?= htmlspecialchars($row['ritase']) ?>',
                                             '<?= htmlspecialchars($row['solar']) ?>',
-                                            '<?= htmlspecialchars($row['keterangan'] ?? '') ?>'
+                                            '<?= htmlspecialchars($row['keterangan'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['overtime_type'] ?? 'NONE') ?>',
+                                            '<?= htmlspecialchars($row['overtime_start'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['overtime_end'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['hm_awal_lembur'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['hm_akhir_lembur'] ?? '') ?>'
                                         )">
                                             <i class="bi bi-pencil"></i>
                                         </button>
@@ -221,11 +228,43 @@ $pagination = makePagination($con, $query, 10);
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-12 mb-3">
+                        <div class="col-12 mb-2">
                             <label class="form-label">Keterangan (Opsional)</label>
                             <textarea class="form-control" name="keterangan" rows="2" placeholder="Contoh: Unit rusak ringan, cuaca hujan, dll..."></textarea>
                         </div>
                     </div>
+                    
+                    <hr>
+                    <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jenis Lembur</label>
+                            <select class="form-select" name="overtime_type">
+                                <option value="NONE">Tidak Ada Lembur</option>
+                                <option value="BIASA">Lembur Biasa</option>
+                                <option value="LIBUR">Lembur Hari Libur</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jam Mulai Lembur</label>
+                            <input type="time" class="form-control" name="overtime_start">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jam Selesai Lembur</label>
+                            <input type="time" class="form-control" name="overtime_end">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HM Awal Lembur</label>
+                            <input type="number" step="0.01" class="form-control" name="hm_awal_lembur">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HM Akhir Lembur</label>
+                            <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur">
+                        </div>
+                    </div>
+                    
                     <div class="alert alert-info py-2" style="font-size: 13px;">
                         <i class="bi bi-info-circle"></i> Sistem akan otomatis menghitung <b>Total HM</b> dan <b>HMC</b> dari data yang Anda masukkan di atas.
                     </div>
@@ -311,9 +350,40 @@ $pagination = makePagination($con, $query, 10);
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-12 mb-3">
+                        <div class="col-12 mb-2">
                             <label class="form-label">Keterangan (Opsional)</label>
                             <textarea class="form-control" name="keterangan" id="edit_keterangan" rows="2" placeholder="Contoh: Unit rusak ringan, cuaca hujan, dll..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jenis Lembur</label>
+                            <select class="form-select" name="overtime_type" id="edit_overtime_type">
+                                <option value="NONE">Tidak Ada Lembur</option>
+                                <option value="BIASA">Lembur Biasa</option>
+                                <option value="LIBUR">Lembur Hari Libur</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jam Mulai Lembur</label>
+                            <input type="time" class="form-control" name="overtime_start" id="edit_overtime_start">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Jam Selesai Lembur</label>
+                            <input type="time" class="form-control" name="overtime_end" id="edit_overtime_end">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HM Awal Lembur</label>
+                            <input type="number" step="0.01" class="form-control" name="hm_awal_lembur" id="edit_hm_awal_lembur">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">HM Akhir Lembur</label>
+                            <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur" id="edit_hm_akhir_lembur">
                         </div>
                     </div>
                 </div>
@@ -327,7 +397,7 @@ $pagination = makePagination($con, $query, 10);
 </div>
 
 <script>
-function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan) {
+function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan, overtime_type, overtime_start, overtime_end, hm_awal_lembur, hm_akhir_lembur) {
     document.getElementById('edit_id').value = id;
     if (document.getElementById('edit_employee_id')) {
         document.getElementById('edit_employee_id').value = employee_id;
@@ -345,6 +415,13 @@ function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, res
     document.getElementById('edit_ritase').value = ritase;
     document.getElementById('edit_solar').value = solar;
     document.getElementById('edit_keterangan').value = keterangan;
+    
+    document.getElementById('edit_overtime_type').value = overtime_type ? overtime_type : 'NONE';
+    document.getElementById('edit_overtime_start').value = overtime_start;
+    document.getElementById('edit_overtime_end').value = overtime_end;
+    document.getElementById('edit_hm_awal_lembur').value = hm_awal_lembur;
+    document.getElementById('edit_hm_akhir_lembur').value = hm_akhir_lembur;
+    
     var editModal = new bootstrap.Modal(document.getElementById('editModal'));
     editModal.show();
 }
