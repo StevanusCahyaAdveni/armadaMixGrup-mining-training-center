@@ -19,6 +19,15 @@ CREATE TABLE IF NOT EXISTS `employee_timesheets` (
   `applied_hm_rate` INT DEFAULT 0 COMMENT 'Tarif HM dari settings',
   `earned_hm_incentive` INT DEFAULT 0 COMMENT 'HMC * applied_hm_rate',
 
+  -- `keterangan` TEXT DEFAULT NULL COMMENT 'Keterangan tambahan (Opsional)',
+
+  `overtime_type` ENUM('NONE', 'BIASA', 'LIBUR') DEFAULT 'NONE' COMMENT 'Jenis lembur',
+  `overtime_start` TIME NULL COMMENT 'Jam mulai lembur',
+  `overtime_end` TIME NULL COMMENT 'Jam selesai lembur',
+  `hm_awal_lembur` DECIMAL(10,2) NULL COMMENT 'HM mesin saat mulai lembur',
+  `hm_akhir_lembur` DECIMAL(10,2) NULL COMMENT 'HM mesin saat selesai lembur',
+  `overtime_amount` DECIMAL(15,2) DEFAULT 0.00 COMMENT 'Nominal uang lembur dihitung sistem',
+
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
