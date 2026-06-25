@@ -79,6 +79,8 @@ $pagination = makePagination($con, $query, 10);
                             <th>Shift</th>
                             <th>Nama Operator</th>
                             <th>No Lambung</th>
+                            <th>Waktu Awal</th>
+                            <th>Waktu Akhir</th>
                             <th>HM Awal</th>
                             <th>HM Akhir</th>
                             <th>Total HM</th>
@@ -96,7 +98,7 @@ $pagination = makePagination($con, $query, 10);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="13" class="text-center text-muted py-3">Belum ada data timesheet.</td>
+                                <td colspan="15" class="text-center text-muted py-3">Belum ada data timesheet.</td>
                             </tr>
                         <?php
                         else:
@@ -110,6 +112,8 @@ $pagination = makePagination($con, $query, 10);
                                     <td><?= htmlspecialchars($row['shift']) ?></td>
                                     <td><?= htmlspecialchars($row['full_name']) ?></td>
                                     <td><?= htmlspecialchars($row['unit_id']) ?></td>
+                                    <td><?= htmlspecialchars($row['waktu_awal'] ? date('H:i', strtotime($row['waktu_awal'])) : '-') ?></td>
+                                    <td><?= htmlspecialchars($row['waktu_akhir'] ? date('H:i', strtotime($row['waktu_akhir'])) : '-') ?></td>
                                     <td><?= htmlspecialchars($row['hm_awal']) ?></td>
                                     <td><?= htmlspecialchars($row['hm_akhir']) ?></td>
                                     <td class="fw-bold text-primary"><?= htmlspecialchars($row['total_hm']) ?></td>
@@ -126,6 +130,8 @@ $pagination = makePagination($con, $query, 10);
                                             '<?= htmlspecialchars($row['tanggal']) ?>',
                                             '<?= htmlspecialchars($row['shift']) ?>',
                                             '<?= htmlspecialchars($row['unit_id']) ?>',
+                                            '<?= htmlspecialchars($row['waktu_awal'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['waktu_akhir'] ?? '') ?>',
                                             '<?= htmlspecialchars($row['hm_awal']) ?>',
                                             '<?= htmlspecialchars($row['hm_akhir']) ?>',
                                             '<?= htmlspecialchars($row['rest_start']) ?>',
@@ -136,6 +142,8 @@ $pagination = makePagination($con, $query, 10);
                                             '<?= htmlspecialchars($row['overtime_type'] ?? 'NONE') ?>',
                                             '<?= htmlspecialchars($row['overtime_start'] ?? '') ?>',
                                             '<?= htmlspecialchars($row['overtime_end'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['overtime_rest_start'] ?? '') ?>',
+                                            '<?= htmlspecialchars($row['overtime_rest_end'] ?? '') ?>',
                                             '<?= htmlspecialchars($row['hm_awal_lembur'] ?? '') ?>',
                                             '<?= htmlspecialchars($row['hm_akhir_lembur'] ?? '') ?>'
                                         )">
@@ -201,10 +209,20 @@ $pagination = makePagination($con, $query, 10);
                             <input type="text" class="form-control" name="unit_id" placeholder="EXCA-45" required>
                         </div>
                         <div class="col-md-4 mb-3">
+                            <label class="form-label">Waktu Awal</label>
+                            <input type="time" class="form-control" name="waktu_awal" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Waktu Akhir</label>
+                            <input type="time" class="form-control" name="waktu_akhir" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">HM Awal</label>
                             <input type="number" step="0.01" class="form-control" name="hm_awal" required>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">HM Akhir</label>
                             <input type="number" step="0.01" class="form-control" name="hm_akhir" required>
                         </div>
@@ -245,21 +263,29 @@ $pagination = makePagination($con, $query, 10);
                                 <option value="LIBUR">Lembur Hari Libur</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Jam Mulai Lembur</label>
                             <input type="time" class="form-control" name="overtime_start">
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Jam Selesai Lembur</label>
                             <input type="time" class="form-control" name="overtime_end">
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Istirahat Lembur Mulai</label>
+                            <input type="time" class="form-control" name="overtime_rest_start">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Istirahat Lembur Selesai</label>
+                            <input type="time" class="form-control" name="overtime_rest_end">
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">HM Awal Lembur</label>
                             <input type="number" step="0.01" class="form-control" name="hm_awal_lembur">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">HM Akhir Lembur</label>
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur">
                         </div>
@@ -323,10 +349,20 @@ $pagination = makePagination($con, $query, 10);
                             <input type="text" class="form-control" name="unit_id" id="edit_unit_id" required>
                         </div>
                         <div class="col-md-4 mb-3">
+                            <label class="form-label">Waktu Awal</label>
+                            <input type="time" class="form-control" name="waktu_awal" id="edit_waktu_awal" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Waktu Akhir</label>
+                            <input type="time" class="form-control" name="waktu_akhir" id="edit_waktu_akhir" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">HM Awal</label>
                             <input type="number" step="0.01" class="form-control" name="hm_awal" id="edit_hm_awal" required>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">HM Akhir</label>
                             <input type="number" step="0.01" class="form-control" name="hm_akhir" id="edit_hm_akhir" required>
                         </div>
@@ -367,21 +403,29 @@ $pagination = makePagination($con, $query, 10);
                                 <option value="LIBUR">Lembur Hari Libur</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Jam Mulai Lembur</label>
                             <input type="time" class="form-control" name="overtime_start" id="edit_overtime_start">
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">Jam Selesai Lembur</label>
                             <input type="time" class="form-control" name="overtime_end" id="edit_overtime_end">
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Istirahat Lembur Mulai</label>
+                            <input type="time" class="form-control" name="overtime_rest_start" id="edit_overtime_rest_start">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Istirahat Lembur Selesai</label>
+                            <input type="time" class="form-control" name="overtime_rest_end" id="edit_overtime_rest_end">
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">HM Awal Lembur</label>
                             <input type="number" step="0.01" class="form-control" name="hm_awal_lembur" id="edit_hm_awal_lembur">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label">HM Akhir Lembur</label>
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur" id="edit_hm_akhir_lembur">
                         </div>
@@ -397,7 +441,7 @@ $pagination = makePagination($con, $query, 10);
 </div>
 
 <script>
-function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan, overtime_type, overtime_start, overtime_end, hm_awal_lembur, hm_akhir_lembur) {
+function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhir, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur) {
     document.getElementById('edit_id').value = id;
     if (document.getElementById('edit_employee_id')) {
         document.getElementById('edit_employee_id').value = employee_id;
@@ -408,6 +452,8 @@ function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, res
     document.getElementById('edit_tanggal').value = tanggal;
     document.getElementById('edit_shift').value = shift;
     document.getElementById('edit_unit_id').value = unit_id;
+    document.getElementById('edit_waktu_awal').value = waktu_awal;
+    document.getElementById('edit_waktu_akhir').value = waktu_akhir;
     document.getElementById('edit_hm_awal').value = hm_awal;
     document.getElementById('edit_hm_akhir').value = hm_akhir;
     document.getElementById('edit_rest_start').value = rest_start;
@@ -419,6 +465,8 @@ function upData(id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, res
     document.getElementById('edit_overtime_type').value = overtime_type ? overtime_type : 'NONE';
     document.getElementById('edit_overtime_start').value = overtime_start;
     document.getElementById('edit_overtime_end').value = overtime_end;
+    document.getElementById('edit_overtime_rest_start').value = overtime_rest_start;
+    document.getElementById('edit_overtime_rest_end').value = overtime_rest_end;
     document.getElementById('edit_hm_awal_lembur').value = hm_awal_lembur;
     document.getElementById('edit_hm_akhir_lembur').value = hm_akhir_lembur;
     
