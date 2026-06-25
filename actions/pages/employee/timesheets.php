@@ -17,6 +17,8 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $unit_id = sani($_POST['unit_id']);
     $hm_awal = (float) $_POST['hm_awal'];
     $hm_akhir = (float) $_POST['hm_akhir'];
+    $waktu_awal = !empty($_POST['waktu_awal']) ? sani($_POST['waktu_awal']) : null;
+    $waktu_akhir = !empty($_POST['waktu_akhir']) ? sani($_POST['waktu_akhir']) : null;
     $rest_start = !empty($_POST['rest_start']) ? sani($_POST['rest_start']) : null;
     $rest_end = !empty($_POST['rest_end']) ? sani($_POST['rest_end']) : null;
     $ritase = (int) $_POST['ritase'];
@@ -27,19 +29,27 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $overtime_type = isset($_POST['overtime_type']) ? sani($_POST['overtime_type']) : 'NONE';
     $overtime_start = !empty($_POST['overtime_start']) ? sani($_POST['overtime_start']) : null;
     $overtime_end = !empty($_POST['overtime_end']) ? sani($_POST['overtime_end']) : null;
+    $overtime_rest_start = !empty($_POST['overtime_rest_start']) ? sani($_POST['overtime_rest_start']) : null;
+    $overtime_rest_end = !empty($_POST['overtime_rest_end']) ? sani($_POST['overtime_rest_end']) : null;
     $hm_awal_lembur = !empty($_POST['hm_awal_lembur']) ? (float) $_POST['hm_awal_lembur'] : null;
     $hm_akhir_lembur = !empty($_POST['hm_akhir_lembur']) ? (float) $_POST['hm_akhir_lembur'] : null;
 
     // Calculations
     $total_hm = $hm_akhir - $hm_awal;
     
-    $ist_hm = 0;
+    // Time Calculation (Work Duration - Rest Duration)
+    $work_mins = getMinutesDiff($waktu_awal, $waktu_akhir);
+    
+    $ist_mins = 0;
     if ($rest_start && $rest_end) {
-        $mins = getMinutesDiff($rest_start, $rest_end);
-        $ist_hm = $mins / 60;
+        $ist_mins = getMinutesDiff($rest_start, $rest_end);
     }
     
-    $hmc = $total_hm + $ist_hm;
+    $ist_hm = $ist_mins / 60;
+    $effective_work_hours = ($work_mins - $ist_mins) / 60;
+    if ($effective_work_hours < 0) $effective_work_hours = 0;
+    
+    $hmc = $effective_work_hours; // HMC is now representing Total Working Hours
 
     // Get HM Rate from settings
     $rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
@@ -55,7 +65,15 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
 
     $overtime_amount = 0;
     if ($overtime_type !== 'NONE' && $overtime_start && $overtime_end) {
-        $diff_hours = getMinutesDiff($overtime_start, $overtime_end) / 60;
+        $diff_mins = getMinutesDiff($overtime_start, $overtime_end);
+        
+        $ot_rest_mins = 0;
+        if ($overtime_rest_start && $overtime_rest_end) {
+            $ot_rest_mins = getMinutesDiff($overtime_rest_start, $overtime_rest_end);
+        }
+        
+        $diff_hours = ($diff_mins - $ot_rest_mins) / 60;
+        if ($diff_hours < 0) $diff_hours = 0;
         
         if ($overtime_type === 'BIASA') {
             if ($diff_hours <= 1) {
@@ -76,10 +94,10 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
 
     if (isset($_POST['addData'])) {
         $id = generate_uuid();
-        $query = "INSERT INTO employee_timesheets (id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan, overtime_type, overtime_start, overtime_end, hm_awal_lembur, hm_akhir_lembur, overtime_amount) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $params = [$id, $employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan, $overtime_type, $overtime_start, $overtime_end, $hm_awal_lembur, $hm_akhir_lembur, $overtime_amount];
-        $types = "sssssddssiddddiisssssdd";
+        $query = "INSERT INTO employee_timesheets (id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, waktu_awal, waktu_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur, overtime_amount) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $params = [$id, $employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $waktu_awal, $waktu_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan, $overtime_type, $overtime_start, $overtime_end, $overtime_rest_start, $overtime_rest_end, $hm_awal_lembur, $hm_akhir_lembur, $overtime_amount];
+        $types = "sssssddssssiddddiisssssssdd";
         
         if (executeSecure($con, $query, $params, $types)) {
             $_SESSION['message'] = 'Data timesheet berhasil ditambahkan!';
@@ -98,13 +116,13 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
         $id = sani($_POST['id']);
         $query = "UPDATE employee_timesheets SET 
                     employee_id = ?, tanggal = ?, shift = ?, unit_id = ?, 
-                    hm_awal = ?, hm_akhir = ?, rest_start = ?, rest_end = ?, 
+                    hm_awal = ?, hm_akhir = ?, waktu_awal = ?, waktu_akhir = ?, rest_start = ?, rest_end = ?, 
                     ritase = ?, solar = ?, total_hm = ?, ist_hm = ?, hmc = ?, 
                     applied_hm_rate = ?, earned_hm_incentive = ?, keterangan = ?,
-                    overtime_type = ?, overtime_start = ?, overtime_end = ?, hm_awal_lembur = ?, hm_akhir_lembur = ?, overtime_amount = ? 
+                    overtime_type = ?, overtime_start = ?, overtime_end = ?, overtime_rest_start = ?, overtime_rest_end = ?, hm_awal_lembur = ?, hm_akhir_lembur = ?, overtime_amount = ? 
                   WHERE id = ?";
-        $params = [$employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan, $overtime_type, $overtime_start, $overtime_end, $hm_awal_lembur, $hm_akhir_lembur, $overtime_amount, $id];
-        $types = "ssssddssiddddiisssssdds";
+        $params = [$employee_id, $tanggal, $shift, $unit_id, $hm_awal, $hm_akhir, $waktu_awal, $waktu_akhir, $rest_start, $rest_end, $ritase, $solar, $total_hm, $ist_hm, $hmc, $applied_hm_rate, $earned_hm_incentive, $keterangan, $overtime_type, $overtime_start, $overtime_end, $overtime_rest_start, $overtime_rest_end, $hm_awal_lembur, $hm_akhir_lembur, $overtime_amount, $id];
+        $types = "ssssddssssiddddiisssssssdds";
         
         if (executeSecure($con, $query, $params, $types)) {
             $_SESSION['message'] = 'Data timesheet berhasil diupdate!';
