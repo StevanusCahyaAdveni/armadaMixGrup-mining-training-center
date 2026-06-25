@@ -440,4 +440,10 @@ Semua perhitungan ini otomatis diproses di *backend* sesaat sebelum data ditamba
   - Kolom join_date berhasil ditambahkan pada tabel database employees.
   - Halaman pages/employee/employees.php dan file aksi ctions/pages/employee/employees.php dirombak agar *user interface* tabel dan *form* (Create & Update) hanya berfokus pada tiga informasi inti: **Full Name**, **Position**, dan **Join Date**.
   - Kolom lain yang berlebihan dan tidak terpakai telah dibuang dari fungsi CRUD (Create, Read, Update, Delete) karyawan untuk membuat tabel dan penginputan data menjadi jauh lebih ringkas.
-
+  
+- **Perubahan Rumus Insentif HM Menjadi Jam Kerja**: 
+  - Membuat `database/employee_timesheet_time_alter.sql` untuk menambahkan `waktu_awal` dan `waktu_akhir` pada `employee_timesheets`.
+  - Mengubah logika perhitungan uang (sebelumnya bernama HMC) di `actions/pages/employee/timesheets.php`. HMC sekarang menyimpan jumlah *jam kerja efektif* (Waktu Selesai - Waktu Mulai - Istirahat).
+  - Insentif dikali `17000` per jam.
+  - Form UI di `timesheets.php` tetap mempertahankan HM Awal dan HM Akhir (atas permintaan), dan mendapat tambahan *input time* Waktu Awal dan Waktu Akhir.
+  - Judul kolom di `payroll.php` sudah diubah dari "Total HMC" menjadi "Total Jam Kerja".
