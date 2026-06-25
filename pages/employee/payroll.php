@@ -90,7 +90,7 @@ $result = mysqli_query($con, $query);
                             <th>Nama Karyawan</th>
                             <!-- <th class="text-end">Gaji Pokok</th>
                             <th class="text-end">Tunjangan Tetap</th> -->
-                            <th class="text-center">Total HMC</th>
+                            <th class="text-center">Total Jam Kerja</th>
                             <th class="text-end">Insentif HM</th>
                             <th class="text-end">Uang Lembur</th>
                             <th class="text-end">Penambah/Pengurang</th>
