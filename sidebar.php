@@ -59,6 +59,7 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>Timesheets (HM)</span>
                     </a>
                 </li>
+                <?php if (!isset($_SESSION['admin']['role']) || $_SESSION['admin']['role'] !== 'HR Site'): ?>
                 <?php
                 $sidebarPage = "employee_payroll";
                 ?>
@@ -68,6 +69,7 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>Rekap Gaji (Payroll)</span>
                     </a>
                 </li>
+                <?php endif; ?>
                 <!-- End Example New Menu in Side Bar -->
                 <?php if (strpos($fullUrl, 'mtc.armadamix.id') === false) { ?>
                     <li class="sidebar-title">CRUD</li>
