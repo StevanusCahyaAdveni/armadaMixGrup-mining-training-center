@@ -106,11 +106,9 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
             $_SESSION['message'] = 'Gagal menambahkan data!';
             $_SESSION['message_type'] = 'error';
         }
-        echo "
-            <script>
-                window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
-            </script>
-        ";
+        $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_timesheets';
+        header("Location: $redirectUrl");
+        exit;
     } 
     elseif (isset($_POST['updateData'])) {
         $id = sani($_POST['id']);
@@ -131,11 +129,9 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
             $_SESSION['message'] = 'Gagal mengupdate data!';
             $_SESSION['message_type'] = 'error';
         }
-        echo "
-            <script>
-                window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
-            </script>
-        ";
+        $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_timesheets';
+        header("Location: $redirectUrl");
+        exit;
     }
 }
 
@@ -149,10 +145,8 @@ if (isset($_GET['delete'])) {
         $_SESSION['message'] = 'Gagal menghapus data!';
         $_SESSION['message_type'] = 'error';
     }
-    echo "
-        <script>
-            window.location.href = document.referrer ? document.referrer : '../?hal=employee_timesheets';
-        </script>
-    ";
+    $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_timesheets';
+    header("Location: $redirectUrl");
+    exit;
 }
 ?>
