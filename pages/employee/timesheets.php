@@ -4,18 +4,21 @@ $search = isset($_GET['search']) ? sani($_GET['search']) : '';
 $whereClause = '';
 $user_id_filter = '';
 
+$start_date = isset($_GET['start_date']) ? sani($_GET['start_date']) : date('Y-m-d');
+$end_date = isset($_GET['end_date']) ? sani($_GET['end_date']) : date('Y-m-d');
+
+$dateFilter = " t.tanggal >= '$start_date' AND t.tanggal <= '$end_date'";
+
 if (isset($_GET['user_id'])) {
     $uid = sani($_GET['user_id']);
     $user_id_filter = $uid;
-    $whereClause = "WHERE t.employee_id = '$uid'";
+    $whereClause = "WHERE t.employee_id = '$uid' AND $dateFilter";
+} else {
+    $whereClause = "WHERE $dateFilter";
 }
 
 if (!empty($search)) {
-    if (empty($whereClause)) {
-        $whereClause = " WHERE (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%' OR t.tanggal LIKE '%$search%')";
-    } else {
-        $whereClause .= " AND (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%' OR t.tanggal LIKE '%$search%')";
-    }
+    $whereClause .= " AND (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%')";
 }
 
 $query = "SELECT t.*, e.full_name 
@@ -58,11 +61,18 @@ $pagination = makePagination($con, $query, 10);
                     <?php if (isset($_GET['user_id'])): ?>
                         <input type="hidden" name="user_id" value="<?= htmlspecialchars($_GET['user_id']) ?>">
                     <?php endif; ?>
-                    <div class="col-10">
-                        <input type="text" class="form-control form-control-sm" name="search" placeholder="Cari nama, unit, atau tanggal (YYYY-MM-DD)..." value="<?= htmlspecialchars($search) ?>">
+                    <div class="col-md-3 mb-1">
+                        <input type="date" class="form-control form-control-sm" name="start_date" value="<?= htmlspecialchars($start_date) ?>" required title="Tanggal Mulai">
                     </div>
-                    <div class="col-2">
-                        <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-search"></i> Cari</button>
+                    <div class="col-md-3 mb-1">
+                        <input type="date" class="form-control form-control-sm" name="end_date" value="<?= htmlspecialchars($end_date) ?>" required title="Tanggal Akhir">
+                    </div>
+                    <div class="col-md-4 mb-1">
+                        <input type="text" class="form-control form-control-sm" name="search" placeholder="Cari nama, unit..." value="<?= htmlspecialchars($search) ?>">
+                    </div>
+                    <div class="col-md-2 mb-1 d-flex gap-1">
+                        <button type="submit" class="btn btn-sm btn-primary w-50" title="Cari Data"><i class="bi bi-search"></i> Cari</button>
+                        <a href="actions/pages/employee/export-timesheets.php?start_date=<?= $start_date ?>&end_date=<?= $end_date ?>&search=<?= urlencode($search) ?>&user_id=<?= urlencode($user_id_filter) ?>" class="btn btn-sm btn-success w-50" title="Export Excel"><i class="bi bi-file-earmark-excel"></i> Excel</a>
                     </div>
                 </div>
             </form>
@@ -89,6 +99,9 @@ $pagination = makePagination($con, $query, 10);
                             <th>Ritase</th>
                             <th>Solar</th>
                             <th>Keterangan</th>
+                            <th>Jenis Lembur</th>
+                            <th>Jam Lembur</th>
+                            <th>Istirahat Lembur</th>
                             <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                             <th>Uang Lembur</th>
                             <?php endif; ?>
@@ -100,7 +113,7 @@ $pagination = makePagination($con, $query, 10);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="15" class="text-center text-muted py-3">Belum ada data timesheet.</td>
+                                <td colspan="20" class="text-center text-muted py-3">Belum ada data timesheet.</td>
                             </tr>
                         <?php
                         else:
@@ -124,6 +137,21 @@ $pagination = makePagination($con, $query, 10);
                                     <td><?= htmlspecialchars($row['ritase']) ?></td>
                                     <td><?= htmlspecialchars($row['solar']) ?></td>
                                     <td><?= htmlspecialchars($row['keterangan'] ?? '-') ?></td>
+                                    <td><?= htmlspecialchars($row['overtime_type'] == 'NONE' ? '-' : $row['overtime_type']) ?></td>
+                                    <td>
+                                        <?php if ($row['overtime_type'] != 'NONE' && $row['overtime_start']): ?>
+                                            <?= date('H:i', strtotime($row['overtime_start'])) ?> - <?= date('H:i', strtotime($row['overtime_end'])) ?>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($row['overtime_rest_start'] && $row['overtime_rest_end']): ?>
+                                            <?= date('H:i', strtotime($row['overtime_rest_start'])) ?> - <?= date('H:i', strtotime($row['overtime_rest_end'])) ?>
+                                        <?php else: ?>
+                                            -
+                                        <?php endif; ?>
+                                    </td>
                                     <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                                     <td class="text-end fw-bold text-success">Rp <?= number_format($row['overtime_amount'] ?? 0, 0, ',', '.') ?></td>
                                     <?php endif; ?>
@@ -257,12 +285,11 @@ $pagination = makePagination($con, $query, 10);
                     </div>
                     
                     <hr>
-                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                     <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Jenis Lembur</label>
-                            <select class="form-select" name="overtime_type">
+                            <select class="form-select" name="overtime_type" onchange="handleOvertimeTypeChange(this, false)">
                                 <option value="NONE">Tidak Ada Lembur</option>
                                 <option value="BIASA">Lembur Biasa</option>
                                 <option value="LIBUR">Lembur Hari Libur</option>
@@ -295,7 +322,6 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur">
                         </div>
                     </div>
-                    <?php endif; ?>
                     
                     <div class="alert alert-info py-2" style="font-size: 13px;">
                         <i class="bi bi-info-circle"></i> Sistem akan otomatis menghitung <b>Total HM</b> dan <b>HMC</b> dari data yang Anda masukkan di atas.
@@ -399,12 +425,11 @@ $pagination = makePagination($con, $query, 10);
                     </div>
                     
                     <hr>
-                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                     <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Jenis Lembur</label>
-                            <select class="form-select" name="overtime_type" id="edit_overtime_type">
+                            <select class="form-select" name="overtime_type" id="edit_overtime_type" onchange="handleOvertimeTypeChange(this, true)">
                                 <option value="NONE">Tidak Ada Lembur</option>
                                 <option value="BIASA">Lembur Biasa</option>
                                 <option value="LIBUR">Lembur Hari Libur</option>
@@ -437,7 +462,6 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur" id="edit_hm_akhir_lembur">
                         </div>
                     </div>
-                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -471,6 +495,8 @@ function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhi
     document.getElementById('edit_keterangan').value = keterangan;
     
     document.getElementById('edit_overtime_type').value = overtime_type ? overtime_type : 'NONE';
+    handleOvertimeTypeChange(document.getElementById('edit_overtime_type'), true);
+    
     document.getElementById('edit_overtime_start').value = overtime_start;
     document.getElementById('edit_overtime_end').value = overtime_end;
     document.getElementById('edit_overtime_rest_start').value = overtime_rest_start;
@@ -480,5 +506,42 @@ function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhi
     
     var editModal = new bootstrap.Modal(document.getElementById('editModal'));
     editModal.show();
+}
+</script>
+
+<script>
+function handleOvertimeTypeChange(selectElement, isEdit) {
+    var form = selectElement.closest('form');
+    var hm_awal = form.querySelector('[name="hm_awal"]');
+    var hm_akhir = form.querySelector('[name="hm_akhir"]');
+    var waktu_awal = form.querySelector('[name="waktu_awal"]');
+    var waktu_akhir = form.querySelector('[name="waktu_akhir"]');
+    
+    if (selectElement.value === 'LIBUR') {
+        hm_awal.value = '0';
+        hm_akhir.value = '0';
+        waktu_awal.value = '';
+        waktu_akhir.value = '';
+        
+        hm_awal.removeAttribute('required');
+        hm_akhir.removeAttribute('required');
+        waktu_awal.removeAttribute('required');
+        waktu_akhir.removeAttribute('required');
+        
+        hm_awal.setAttribute('readonly', 'true');
+        hm_akhir.setAttribute('readonly', 'true');
+        waktu_awal.setAttribute('readonly', 'true');
+        waktu_akhir.setAttribute('readonly', 'true');
+    } else {
+        hm_awal.setAttribute('required', 'required');
+        hm_akhir.setAttribute('required', 'required');
+        waktu_awal.setAttribute('required', 'required');
+        waktu_akhir.setAttribute('required', 'required');
+        
+        hm_awal.removeAttribute('readonly');
+        hm_akhir.removeAttribute('readonly');
+        waktu_awal.removeAttribute('readonly');
+        waktu_akhir.removeAttribute('readonly');
+    }
 }
 </script>
