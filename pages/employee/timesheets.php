@@ -89,7 +89,9 @@ $pagination = makePagination($con, $query, 10);
                             <th>Ritase</th>
                             <th>Solar</th>
                             <th>Keterangan</th>
+                            <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                             <th>Uang Lembur</th>
+                            <?php endif; ?>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -122,7 +124,9 @@ $pagination = makePagination($con, $query, 10);
                                     <td><?= htmlspecialchars($row['ritase']) ?></td>
                                     <td><?= htmlspecialchars($row['solar']) ?></td>
                                     <td><?= htmlspecialchars($row['keterangan'] ?? '-') ?></td>
+                                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                                     <td class="text-end fw-bold text-success">Rp <?= number_format($row['overtime_amount'] ?? 0, 0, ',', '.') ?></td>
+                                    <?php endif; ?>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-warning" onclick="upData(
                                             '<?= $row['id'] ?>',
@@ -253,6 +257,7 @@ $pagination = makePagination($con, $query, 10);
                     </div>
                     
                     <hr>
+                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                     <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -290,6 +295,7 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur">
                         </div>
                     </div>
+                    <?php endif; ?>
                     
                     <div class="alert alert-info py-2" style="font-size: 13px;">
                         <i class="bi bi-info-circle"></i> Sistem akan otomatis menghitung <b>Total HM</b> dan <b>HMC</b> dari data yang Anda masukkan di atas.
@@ -393,6 +399,7 @@ $pagination = makePagination($con, $query, 10);
                     </div>
                     
                     <hr>
+                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
                     <h6 class="mb-3 text-primary">Data Lembur (Opsional)</h6>
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -430,6 +437,7 @@ $pagination = makePagination($con, $query, 10);
                             <input type="number" step="0.01" class="form-control" name="hm_akhir_lembur" id="edit_hm_akhir_lembur">
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
