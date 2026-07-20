@@ -148,5 +148,5 @@ if (isset($_GET['delete'])) {
     $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_timesheets';
     header("Location: $redirectUrl");
     exit;
-}
+} 
 ?>
