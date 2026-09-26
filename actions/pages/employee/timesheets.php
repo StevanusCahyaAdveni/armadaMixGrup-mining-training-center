@@ -54,14 +54,14 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     // Get HM Rate from settings
     $rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
     $rateRow = mysqli_fetch_assoc($rateQuery);
-    $applied_hm_rate = isset($rateRow['setting_value']) ? (int) $rateRow['setting_value'] : 0;
+    $applied_hm_rate = isset($rateRow['setting_value']) ? (int) $rateRow['setting_value'] : 17000;
     
-    $earned_hm_incentive = $hmc * $applied_hm_rate;
+    $earned_hm_incentive = (int) round($hmc * $applied_hm_rate);
 
     // Get Tarif Lembur
     $rateQuery2 = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
     $rateRow2 = mysqli_fetch_assoc($rateQuery2);
-    $tarif_lembur = isset($rateRow2['setting_value']) ? (int) $rateRow2['setting_value'] : 19505;
+    $tarif_lembur = isset($rateRow2['setting_value']) ? (float) $rateRow2['setting_value'] : 19509;
 
     $overtime_amount = 0;
     if ($overtime_type !== 'NONE' && $overtime_start && $overtime_end) {
@@ -75,20 +75,12 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
         $diff_hours = ($diff_mins - $ot_rest_mins) / 60;
         if ($diff_hours < 0) $diff_hours = 0;
         
-        if ($overtime_type === 'BIASA') {
-            if ($diff_hours <= 1) {
-                $overtime_amount = $diff_hours * 1.5 * $tarif_lembur;
-            } else {
-                $overtime_amount = (1 * 1.5 * $tarif_lembur) + (($diff_hours - 1) * 2 * $tarif_lembur);
-            }
-        } elseif ($overtime_type === 'LIBUR') {
-            if ($diff_hours <= 7) {
-                $overtime_amount = $diff_hours * 2 * $tarif_lembur;
-            } elseif ($diff_hours <= 8) {
-                $overtime_amount = (7 * 2 * $tarif_lembur) + (($diff_hours - 7) * 3 * $tarif_lembur);
-            } else {
-                $overtime_amount = (7 * 2 * $tarif_lembur) + (1 * 3 * $tarif_lembur) + (($diff_hours - 8) * 4 * $tarif_lembur);
-            }
+        // Per aturan baru: Lembur flat seragam (tidak ada aturan hari ke-6 & 7):
+        // 1 jam pertama x 1.5, jam berikutnya x 2.0 (2 jam kerja = 3.5 jam konversi lembur)
+        if ($diff_hours <= 1) {
+            $overtime_amount = $diff_hours * 1.5 * $tarif_lembur;
+        } else {
+            $overtime_amount = (1 * 1.5 * $tarif_lembur) + (($diff_hours - 1) * 2 * $tarif_lembur);
         }
     }
 

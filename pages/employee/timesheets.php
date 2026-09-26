@@ -44,9 +44,14 @@ $pagination = makePagination($con, $query, 10);
     <div class="d-flex justify-content-between align-items-center mb-3">
         <!-- <h3>Timesheets (HM) Karyawan</h3> -->
         <span></span>
-        <button type="button" class="btn shadow-sm btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
-            <i class="bi bi-plus-circle"></i> Tambah Data
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn shadow-sm btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Import / Paste Excel
+            </button>
+            <button type="button" class="btn shadow-sm btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+                <i class="bi bi-plus-circle me-1"></i> Tambah Data
+            </button>
+        </div>
     </div>
     
     <section class="section">
@@ -507,9 +512,7 @@ function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhi
     var editModal = new bootstrap.Modal(document.getElementById('editModal'));
     editModal.show();
 }
-</script>
 
-<script>
 function handleOvertimeTypeChange(selectElement, isEdit) {
     var form = selectElement.closest('form');
     var hm_awal = form.querySelector('[name="hm_awal"]');
@@ -545,3 +548,490 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
     }
 }
 </script>
+
+<!-- Import / Paste Excel Modal -->
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95vw;">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-success text-white py-2">
+                <h5 class="modal-title fs-6" id="importExcelModalLabel">
+                    <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i> Import / Paste Data Excel Unit ke Timesheets
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <!-- Step 1: Input Box -->
+                <div id="importStep1">
+                    <div class="alert alert-light border border-success border-opacity-25 py-2 mb-3 shadow-sm" style="font-size: 13px;">
+                        <div class="fw-bold text-success mb-1"><i class="bi bi-info-circle-fill me-1"></i> Panduan Copy-Paste dari Excel Unit:</div>
+                        <ol class="mb-1 ps-3">
+                            <li>Buka spreadsheet / Excel laporan harian dari unit lapangan (seperti format 25 kolom standard unit).</li>
+                            <li>Blok baris data yang ingin diinput, tekan <b>Ctrl + C</b> (Salin). <i>(Baris judul/header boleh ikut ter-copy, sistem otomatis mengabaikannya)</i>.</li>
+                            <li>Klik pada kotak teks di bawah lalu tekan <b>Ctrl + V</b> (Tempel / Paste).</li>
+                            <li>Klik tombol <b>"Proses & Preview Data"</b> untuk melihat hasil pengenalan nama operator dan perhitungan otomatis.</li>
+                        </ol>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Paste Data Excel Di Sini:</label>
+                        <textarea id="rawExcelData" class="form-control font-monospace" rows="11" style="font-size: 12px; white-space: pre;" placeholder="Paste data dari Excel di sini (contoh: 01-Jun-26	SIANG	1	EXCA-45	FITRA RAMADANA	2.645,00	2.652,00	7,00	7,00	7,05	7,05	15,00	...)"></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearPasteArea()">
+                            <i class="bi bi-eraser me-1"></i> Bersihkan Kotak
+                        </button>
+                        <button type="button" id="btnPreviewData" class="btn btn-primary px-4 shadow-sm" onclick="processExcelPreview()">
+                            <i class="bi bi-arrow-right-circle me-1"></i> Proses & Preview Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Preview & Validation Table -->
+                <div id="importStep2" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <span class="badge bg-primary fs-6 cursor-pointer" id="badgeTotalRows" onclick="quickFilterStatus('ALL')" title="Klik untuk tampilkan semua" style="cursor: pointer;">0 Baris</span>
+                            <span class="badge bg-success fs-6 cursor-pointer" id="badgeMatchedRows" onclick="quickFilterStatus('MATCHED')" title="Klik untuk filter Karyawan Cocok" style="cursor: pointer;">0 Karyawan Cocok</span>
+                            <span class="badge bg-info text-dark fs-6 cursor-pointer" id="badgeNewRows" onclick="quickFilterStatus('NEW')" title="Klik untuk filter Karyawan Baru" style="cursor: pointer; display:none;">0 Karyawan Baru</span>
+                            <span class="badge bg-warning text-dark fs-6 cursor-pointer" id="badgeUnmatchedRows" onclick="quickFilterStatus('UNSELECTED')" title="Klik untuk filter Belum Dipilih" style="cursor: pointer; display:none;">0 Belum Dipilih</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="backToStep1()">
+                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Kotak Input
+                        </button>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="card p-2 mb-2 bg-light border shadow-sm">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-5">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="filterSearchName" class="form-control" placeholder="Cari nama operator, unit, tanggal..." onkeyup="applyPreviewFilters()">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('filterSearchName').value=''; applyPreviewFilters();" title="Hapus Pencarian">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <label class="input-group-text bg-white small">Filter Status:</label>
+                                    <select id="filterStatus" class="form-select form-select-sm" onchange="applyPreviewFilters()">
+                                        <option value="ALL">Semua Status</option>
+                                        <option value="MATCHED">✅ Karyawan Cocok</option>
+                                        <option value="NEW">➕ Karyawan Baru (Akan Dibuat)</option>
+                                        <option value="UNSELECTED">⚠️ Belum Dipilih / Kosong</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="small fw-semibold text-muted" id="filterResultCount">Menampilkan semua</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="unmatchedAlert" class="alert alert-info py-2 mb-2 shadow-sm" style="font-size: 12px; display: none;">
+                        <i class="bi bi-info-circle-fill me-1"></i> <b>Catatan:</b> Jika nama di Excel adalah karyawan baru, sistem otomatis menyetel opsi <b>➕ [Buat Karyawan Baru]</b> agar didaftarkan ke master karyawan. Anda juga tetap bisa menggantinya ke karyawan yang sudah ada melalui dropdown.
+                    </div>
+
+                    <div class="table-responsive border rounded mb-3" style="max-height: 460px; font-size: 11px;">
+                        <table class="table table-sm table-hover table-striped mb-0" style="white-space: nowrap;">
+                            <thead class="table-dark sticky-top" style="z-index: 5;">
+                                <tr>
+                                    <th class="text-center" width="40">
+                                        <input type="checkbox" id="checkAllImport" class="form-check-input" checked onchange="toggleSelectAll(this)">
+                                    </th>
+                                    <th>No</th>
+                                    <th>Tanggal</th>
+                                    <th>Shift</th>
+                                    <th>Tipe</th>
+                                    <th>No Lambung</th>
+                                    <th>Nama di Excel</th>
+                                    <th style="min-width: 260px;">Karyawan di Sistem</th>
+                                    <th>Jam Kerja / Lembur</th>
+                                    <th>HM Awal - Akhir</th>
+                                    <th>Total HM</th>
+                                    <th>HMC (Jam)</th>
+                                    <th>Ritase</th>
+                                    <th>Solar</th>
+                                    <th>Insentif HM</th>
+                                    <th>Uang Lembur</th>
+                                    <th>Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small" id="selectedCountText">0 baris terpilih</div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="backToStep1()">Batal</button>
+                            <button type="button" id="btnSaveBatch" class="btn btn-success px-4 shadow-sm" onclick="saveBatchImport()">
+                                <i class="bi bi-check-circle-fill me-1"></i> Simpan ke Timesheets (<span id="btnSaveCount">0</span> Data)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner State -->
+                <div id="importLoading" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-3 fw-bold text-muted" id="importLoadingText">Memproses data dari Excel...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var globalParsedRows = [];
+var globalEmployees = [];
+
+function clearPasteArea() {
+    document.getElementById('rawExcelData').value = '';
+    document.getElementById('rawExcelData').focus();
+}
+
+function backToStep1() {
+    document.getElementById('importStep1').style.display = 'block';
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importLoading').style.display = 'none';
+}
+
+function processExcelPreview() {
+    var raw = document.getElementById('rawExcelData').value.trim();
+    if (!raw) {
+        alert('Silakan paste data dari Excel terlebih dahulu!');
+        return;
+    }
+
+    document.getElementById('importStep1').style.display = 'none';
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importLoadingText').innerText = 'Membedah data & mencocokkan master karyawan...';
+
+    var formData = new FormData();
+    formData.append('raw_data', raw);
+
+    fetch('actions/?hal=employee_import-timesheets&action=preview', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        document.getElementById('importLoading').style.display = 'none';
+        if (data.status === 'error') {
+            alert(data.message || 'Terjadi kesalahan saat memproses data.');
+            backToStep1();
+            return;
+        }
+
+        globalParsedRows = data.rows || [];
+        globalEmployees = data.employees || [];
+
+        renderPreviewTable(data);
+    })
+    .catch(function(err) {
+        document.getElementById('importLoading').style.display = 'none';
+        alert('Gagal berkomunikasi dengan server: ' + err.message);
+        backToStep1();
+    });
+}
+
+function renderPreviewTable(data) {
+    document.getElementById('importStep2').style.display = 'block';
+
+    var tbody = document.getElementById('previewTableBody');
+    tbody.innerHTML = '';
+
+    if (data.rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="17" class="text-center py-4 text-muted">Tidak ada data yang valid untuk ditampilkan.</td></tr>';
+        updateSelectedSummary();
+        return;
+    }
+
+    data.rows.forEach(function(row, idx) {
+        var tr = document.createElement('tr');
+        var isNew = (row.employee_id === '__NEW__');
+        var isMatched = (row.employee_id && row.employee_id !== '__NEW__');
+        
+        if (isNew) {
+            tr.className = 'table-info';
+        } else if (!isMatched) {
+            tr.className = 'table-warning';
+        }
+
+        var waktuStr = '-';
+        if (row.is_overtime) {
+            waktuStr = (row.overtime_start || '-') + ' s/d ' + (row.overtime_end || '-');
+        } else if (row.waktu_awal || row.waktu_akhir) {
+            waktuStr = (row.waktu_awal || '-') + ' s/d ' + (row.waktu_akhir || '-');
+        }
+
+        var hmStr = '-';
+        if (row.is_overtime) {
+            hmStr = (row.hm_awal_lembur || 0) + ' - ' + (row.hm_akhir_lembur || 0);
+        } else if (row.hm_awal || row.hm_akhir) {
+            hmStr = row.hm_awal + ' - ' + row.hm_akhir;
+        }
+
+        var insentifStr = row.earned_hm_incentive ? 'Rp ' + Number(row.earned_hm_incentive).toLocaleString('id-ID') : '-';
+        var lemburStr = row.overtime_amount ? 'Rp ' + Number(row.overtime_amount).toLocaleString('id-ID') : '-';
+
+        var selectHtml = '<select class="form-select form-select-sm emp-select" style="font-size: 11px; padding: 2px 4px;" onchange="onEmployeeSelectChange(' + idx + ', this)">';
+        
+        // Option to create as new employee
+        var selectedNew = isNew ? 'selected' : '';
+        selectHtml += '<option value="__NEW__" ' + selectedNew + ' style="font-weight: bold; color: #0d6efd;">➕ [Buat Karyawan Baru] ' + escapeHtml(row.operator_raw) + '</option>';
+        selectHtml += '<option value="">-- Lewati / Kosongkan --</option>';
+        selectHtml += '<optgroup label="Pilih Karyawan Yang Sudah Ada:">';
+        globalEmployees.forEach(function(emp) {
+            var selected = (emp.id === row.employee_id) ? 'selected' : '';
+            selectHtml += '<option value="' + escapeHtml(emp.id) + '" ' + selected + '>' + escapeHtml(emp.full_name + ' (' + emp.employee_id + ')') + '</option>';
+        });
+        selectHtml += '</optgroup>';
+        selectHtml += '</select>';
+
+        tr.innerHTML = 
+            '<td class="text-center"><input type="checkbox" class="form-check-input row-checkbox" data-idx="' + idx + '" checked onchange="updateSelectedSummary()"></td>' +
+            '<td>' + (idx + 1) + '</td>' +
+            '<td>' + escapeHtml(row.tanggal) + '</td>' +
+            '<td><span class="badge ' + (row.shift === 'MALAM' ? 'bg-dark' : 'bg-info text-dark') + '">' + escapeHtml(row.shift) + '</span></td>' +
+            '<td>' + (row.is_overtime ? '<span class="badge bg-warning text-dark">Lembur (2)</span>' : '<span class="badge bg-secondary">Pokok (1)</span>') + '</td>' +
+            '<td class="fw-bold">' + escapeHtml(row.unit_id || '-') + '</td>' +
+            '<td>' + escapeHtml(row.operator_raw) + '</td>' +
+            '<td>' + selectHtml + '</td>' +
+            '<td>' + waktuStr + '</td>' +
+            '<td>' + hmStr + '</td>' +
+            '<td>' + (row.total_hm ? row.total_hm.toFixed(2) : '0.00') + '</td>' +
+            '<td class="fw-bold text-primary">' + (row.hmc ? row.hmc.toFixed(2) : '0.00') + '</td>' +
+            '<td>' + (row.ritase || 0) + '</td>' +
+            '<td>' + (row.solar ? row.solar.toFixed(2) : '0.00') + '</td>' +
+            '<td class="text-end text-success fw-bold">' + insentifStr + '</td>' +
+            '<td class="text-end text-primary fw-bold">' + lemburStr + '</td>' +
+            '<td class="text-muted small">' + escapeHtml(row.keterangan || '-') + '</td>';
+
+        tbody.appendChild(tr);
+    });
+
+    updateSelectedSummary();
+    applyPreviewFilters();
+}
+
+function onEmployeeSelectChange(idx, selectEl) {
+    if (globalParsedRows[idx]) {
+        globalParsedRows[idx].employee_id = selectEl.value;
+        var tr = selectEl.closest('tr');
+        tr.classList.remove('table-warning', 'table-info');
+        if (selectEl.value === '__NEW__') {
+            tr.classList.add('table-info');
+        } else if (!selectEl.value) {
+            tr.classList.add('table-warning');
+        }
+        updateSelectedSummary();
+        applyPreviewFilters();
+    }
+}
+
+function quickFilterStatus(status) {
+    document.getElementById('filterStatus').value = status;
+    applyPreviewFilters();
+}
+
+function applyPreviewFilters() {
+    var search = (document.getElementById('filterSearchName').value || '').toLowerCase().trim();
+    var status = document.getElementById('filterStatus').value;
+    
+    var tbody = document.getElementById('previewTableBody');
+    var trs = tbody.querySelectorAll('tr');
+    var visibleCount = 0;
+
+    trs.forEach(function(tr) {
+        var cb = tr.querySelector('.row-checkbox');
+        if (!cb) return;
+        var idx = parseInt(cb.getAttribute('data-idx'));
+        var row = globalParsedRows[idx];
+        if (!row) return;
+
+        var isNew = (row.employee_id === '__NEW__');
+        var isMatched = (row.employee_id && row.employee_id !== '__NEW__');
+        var isUnselected = (!row.employee_id);
+
+        // Status match
+        var statusMatch = true;
+        if (status === 'MATCHED') {
+            statusMatch = isMatched;
+        } else if (status === 'NEW') {
+            statusMatch = isNew;
+        } else if (status === 'UNSELECTED') {
+            statusMatch = isUnselected;
+        }
+
+        // Text search match
+        var textMatch = true;
+        if (search) {
+            var rawText = (
+                (row.operator_raw || '') + ' ' + 
+                (row.employee_name || '') + ' ' + 
+                (row.unit_id || '') + ' ' + 
+                (row.tanggal || '') + ' ' + 
+                (row.shift || '') + ' ' + 
+                (row.keterangan || '')
+            ).toLowerCase();
+            textMatch = (rawText.indexOf(search) !== -1);
+        }
+
+        if (statusMatch && textMatch) {
+            tr.style.display = '';
+            visibleCount++;
+        } else {
+            tr.style.display = 'none';
+        }
+    });
+
+    var countText = document.getElementById('filterResultCount');
+    if (search || status !== 'ALL') {
+        countText.innerText = 'Menampilkan ' + visibleCount + ' dari ' + globalParsedRows.length + ' baris';
+    } else {
+        countText.innerText = 'Menampilkan semua (' + globalParsedRows.length + ' baris)';
+    }
+}
+
+function toggleSelectAll(masterCheckbox) {
+    var checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(function(cb) {
+        var tr = cb.closest('tr');
+        if (tr && tr.style.display !== 'none') {
+            cb.checked = masterCheckbox.checked;
+        }
+    });
+    updateSelectedSummary();
+}
+
+function updateSelectedSummary() {
+    var checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    var totalSelected = checkboxes.length;
+    document.getElementById('btnSaveCount').innerText = totalSelected;
+    document.getElementById('selectedCountText').innerText = totalSelected + ' dari ' + globalParsedRows.length + ' baris terpilih';
+
+    var matchedCount = 0;
+    var newCount = 0;
+    var emptyCount = 0;
+
+    globalParsedRows.forEach(function(r) {
+        if (r.employee_id === '__NEW__') {
+            newCount++;
+        } else if (r.employee_id) {
+            matchedCount++;
+        } else {
+            emptyCount++;
+        }
+    });
+
+    document.getElementById('badgeTotalRows').innerText = globalParsedRows.length + ' Baris';
+    document.getElementById('badgeMatchedRows').innerText = matchedCount + ' Karyawan Cocok';
+    
+    var badgeNew = document.getElementById('badgeNewRows');
+    if (newCount > 0) {
+        badgeNew.style.display = 'inline-block';
+        badgeNew.innerText = newCount + ' Karyawan Baru (Akan Dibuat)';
+    } else {
+        badgeNew.style.display = 'none';
+    }
+
+    var badgeUnmatched = document.getElementById('badgeUnmatchedRows');
+    var alertUnmatched = document.getElementById('unmatchedAlert');
+    if (emptyCount > 0) {
+        badgeUnmatched.style.display = 'inline-block';
+        badgeUnmatched.innerText = emptyCount + ' Belum Dipilih';
+    } else {
+        badgeUnmatched.style.display = 'none';
+    }
+
+    if (newCount > 0 || emptyCount > 0) {
+        alertUnmatched.style.display = 'block';
+    } else {
+        alertUnmatched.style.display = 'none';
+    }
+    
+    var btnSave = document.getElementById('btnSaveBatch');
+    btnSave.disabled = (totalSelected === 0);
+}
+
+function saveBatchImport() {
+    var selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Pilih setidaknya satu baris data untuk disimpan.');
+        return;
+    }
+
+    var itemsToSave = [];
+    var missingEmpNames = [];
+
+    selectedCheckboxes.forEach(function(cb) {
+        var idx = parseInt(cb.getAttribute('data-idx'));
+        var row = globalParsedRows[idx];
+        if (row) {
+            if (!row.employee_id) {
+                missingEmpNames.push('Baris ' + (idx + 1) + ' (' + row.operator_raw + ')');
+            }
+            itemsToSave.push(row);
+        }
+    });
+
+    if (missingEmpNames.length > 0) {
+        var proceed = confirm('Peringatan: Ada ' + missingEmpNames.length + ' data yang belum dipilih karyawan di sistem:\n\n' + 
+            missingEmpNames.slice(0, 5).join('\n') + (missingEmpNames.length > 5 ? '\n...dan lainnya' : '') + 
+            '\n\nBaris tanpa karyawan akan dilewati. Lanjutkan menyimpan ' + (itemsToSave.length - missingEmpNames.length) + ' data yang valid?');
+        if (!proceed) return;
+    }
+
+    if (!confirm('Apakah Anda yakin ingin menyimpan ' + itemsToSave.length + ' data timesheet ke database?')) {
+        return;
+    }
+
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importLoading').style.display = 'block';
+    document.getElementById('importLoadingText').innerText = 'Menyimpan ' + itemsToSave.length + ' data ke database...';
+
+    fetch('actions/?hal=employee_import-timesheets&action=save_batch', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ items: itemsToSave })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        document.getElementById('importLoading').style.display = 'none';
+        if (data.status === 'success') {
+            alert('Sukses! ' + data.message);
+            window.location.reload();
+        } else {
+            alert('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'));
+            document.getElementById('importStep2').style.display = 'block';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('importLoading').style.display = 'none';
+        alert('Gagal menyimpan ke server: ' + err.message);
+        document.getElementById('importStep2').style.display = 'block';
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
+

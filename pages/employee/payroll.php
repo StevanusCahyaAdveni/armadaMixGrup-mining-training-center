@@ -8,10 +8,21 @@ if (!empty($search)) {
     $whereClause .= " AND (e.full_name LIKE '%$search%' OR e.employee_id LIKE '%$search%')";
 }
 
-// Get global HM Rate just for reference
+// Get global HM Rate & Overtime Rate from settings
 $rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
 $rateRow = mysqli_fetch_assoc($rateQuery);
-$global_rate = isset($rateRow['setting_value']) ? number_format($rateRow['setting_value'], 0, ',', '.') : '0';
+$tarif_hm = isset($rateRow['setting_value']) ? (float) $rateRow['setting_value'] : 17000;
+$global_rate = number_format($tarif_hm, 0, ',', '.');
+
+$rateOtQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$rateOtRow = mysqli_fetch_assoc($rateOtQuery);
+$tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
+$global_ot_rate = number_format($tarif_lembur, 0, ',', '.');
+
+$s1_pokok_nominal = 7 * $tarif_hm;
+$s2_hm_nominal = 2 * $tarif_hm;
+$s2_ot_nominal = 3.5 * $tarif_lembur;
+$full_day_total = $s1_pokok_nominal + $s2_hm_nominal + $s2_ot_nominal;
 
 // Main Query: Group by employee to get total HMC, Total HM Incentive
 $query = "SELECT 
@@ -39,15 +50,44 @@ $result = mysqli_query($con, $query);
 ?>
 
 <div class="page-heading">
-    <!-- <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3>Rekap Gaji (Payroll)</h3>
-            <p class="text-muted mb-0">Tarif HM Global Saat Ini: <b>Rp <?= $global_rate ?> / HM</b></p>
+    <!-- Info Banner Aturan Kerja & Penggajian Baru -->
+    <div class="card border-0 shadow-sm mb-3 bg-light d-print-none">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary px-3 py-2 fs-6">Standar Jam Kerja: 10 Jam</span>
+                    <span class="badge bg-success px-3 py-2 fs-6">Tarif HM: Rp <?= $global_rate ?> / HM</span>
+                    <span class="badge bg-warning text-dark px-3 py-2 fs-6">Tarif Lembur (OT): Rp <?= $global_ot_rate ?> / Jam</span>
+                </div>
+                <button class="btn btn-sm btn-outline-success shadow-sm" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Cetak Laporan
+                </button>
+            </div>
+            <div class="row g-2 text-muted" style="font-size: 12.5px;">
+                <div class="col-md-4">
+                    <div class="border rounded p-2 bg-white">
+                        <b>Shift Kerja Operasional:</b><br>
+                        • Pagi: <b>07.00 - 17.00</b> (Istirahat 12.00-13.00)<br>
+                        • Malam: <b>19.00 - 05.00</b> (Istirahat 00.00-01.00)
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-2 bg-white">
+                        <b>Komposisi S1 (Pokok) & S2 (Lembur):</b><br>
+                        • HM S1: <b>7 Jam &times; Rp <?= $global_rate ?></b> = Rp <?= number_format($s1_pokok_nominal, 0, ',', '.') ?><br>
+                        • HM S2: <b>2 Jam &times; Rp <?= $global_rate ?></b> = Rp <?= number_format($s2_hm_nominal, 0, ',', '.') ?>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-2 bg-white">
+                        <b>Uang Lembur & Total Full Hari:</b><br>
+                        • OT S2: <b>3,5 Jam &times; Rp <?= $global_ot_rate ?></b> = Rp <?= number_format($s2_ot_nominal, 0, ',', '.') ?><br>
+                        • Total Full LHO/Hari: <b>Rp <?= number_format($full_day_total, 0, ',', '.') ?></b> (Flat)
+                    </div>
+                </div>
+            </div>
         </div>
-        <button class="btn btn-sm btn-success shadow-sm" onclick="window.print()">
-            <i class="bi bi-printer"></i> Cetak Laporan
-        </button>
-    </div> -->
+    </div>
 
     <section class="section">
         <!-- Filter Card -->
@@ -65,7 +105,7 @@ $result = mysqli_query($con, $query);
                     </div>
                     <div class="col-md-4">
                         <label class="form-label mb-1">Cari Karyawan</label>
-                        <input type="text" class="form-control form-control-sm" name="search" placeholder="Nama" value="<?= htmlspecialchars($search) ?>">
+                        <input type="text" class="form-control form-control-sm" name="search" placeholder="Nama..." value="<?= htmlspecialchars($search) ?>">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
