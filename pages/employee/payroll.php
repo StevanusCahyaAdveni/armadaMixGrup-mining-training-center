@@ -19,10 +19,14 @@ $rateOtRow = mysqli_fetch_assoc($rateOtQuery);
 $tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
 $global_ot_rate = number_format($tarif_lembur, 0, ',', '.');
 
-$s1_pokok_nominal = 7 * $tarif_hm;
-$s2_hm_nominal = 2 * $tarif_hm;
-$s2_ot_nominal = 3.5 * $tarif_lembur;
-$full_day_total = $s1_pokok_nominal + $s2_hm_nominal + $s2_ot_nominal;
+$s1_7h_nominal = 7 * $tarif_hm;
+$s2_2h_hm = 2 * $tarif_hm;
+$s2_2h_ot = 2 * $tarif_lembur;
+$day_7h_2h_total = $s1_7h_nominal + $s2_2h_hm + $s2_2h_ot;
+
+$s2_4h_hm = 4 * $tarif_hm;
+$s2_4h_ot = 4 * $tarif_lembur;
+$day_7h_4h_total = $s1_7h_nominal + $s2_4h_hm + $s2_4h_ot;
 
 // Main Query: Group by employee to get total HMC, Total HM Incentive
 $query = "SELECT 
@@ -55,7 +59,7 @@ $result = mysqli_query($con, $query);
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary px-3 py-2 fs-6">Standar Jam Kerja: 10 Jam</span>
+                    <span class="badge bg-primary px-3 py-2 fs-6">Skema Penggajian Unit Lapangan</span>
                     <span class="badge bg-success px-3 py-2 fs-6">Tarif HM: Rp <?= $global_rate ?> / HM</span>
                     <span class="badge bg-warning text-dark px-3 py-2 fs-6">Tarif Lembur (OT): Rp <?= $global_ot_rate ?> / Jam</span>
                 </div>
@@ -73,16 +77,16 @@ $result = mysqli_query($con, $query);
                 </div>
                 <div class="col-md-4">
                     <div class="border rounded p-2 bg-white">
-                        <b>Komposisi S1 (Pokok) & S2 (Lembur):</b><br>
-                        • HM S1: <b>7 Jam &times; Rp <?= $global_rate ?></b> = Rp <?= number_format($s1_pokok_nominal, 0, ',', '.') ?><br>
-                        • HM S2: <b>2 Jam &times; Rp <?= $global_rate ?></b> = Rp <?= number_format($s2_hm_nominal, 0, ',', '.') ?>
+                        <b>Skema Perhitungan Dinamis:</b><br>
+                        • Shift 1 (Pokok): <b>Jam Kerja &times; Rp <?= $global_rate ?></b> (OT = Rp 0)<br>
+                        • Shift 2 (Lembur): <b>(Jam &times; Rp <?= $global_rate ?>) + (Jam &times; Rp <?= $global_ot_rate ?>)</b>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="border rounded p-2 bg-white">
-                        <b>Uang Lembur & Total Full Hari:</b><br>
-                        • OT S2: <b>3,5 Jam &times; Rp <?= $global_ot_rate ?></b> = Rp <?= number_format($s2_ot_nominal, 0, ',', '.') ?><br>
-                        • Total Full LHO/Hari: <b>Rp <?= number_format($full_day_total, 0, ',', '.') ?></b> (Flat)
+                        <b>Simulasi Harian Operator:</b><br>
+                        • S1 7H + S2 4H: <b>Rp <?= number_format($day_7h_4h_total, 0, ',', '.') ?></b> (HM Rp 187k + OT Rp <?= number_format($s2_4h_ot, 0, ',', '.') ?>)<br>
+                        • S1 7H + S2 2H: <b>Rp <?= number_format($day_7h_2h_total, 0, ',', '.') ?></b> (HM Rp 153k + OT Rp <?= number_format($s2_2h_ot, 0, ',', '.') ?>)
                     </div>
                 </div>
             </div>

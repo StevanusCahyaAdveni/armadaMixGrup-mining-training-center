@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = sani($_POST['username']);
         $email = sani($_POST['email']);
         $password = sani($_POST['password']);
+        $bank = isset($_POST['bank']) ? sani($_POST['bank']) : null;
         $photo_profile = null;
 
         if (isset($_FILES['photo_profile']) && $_FILES['photo_profile']['error'] === UPLOAD_ERR_OK && !empty($_FILES['photo_profile']['name'])) {
@@ -20,9 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $query = "INSERT INTO users (id, fullname, username, email, password, photo_profile) VALUES (?, ?, ?, ?, ?, ?)";
-        $params = [$id, $fullname, $username, $email, password_hash($password, PASSWORD_DEFAULT), $photo_profile];
-        $types = 'ssssss';
+        $query = "INSERT INTO users (id, fullname, username, email, password, photo_profile, bank) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $params = [$id, $fullname, $username, $email, password_hash($password, PASSWORD_DEFAULT), $photo_profile, $bank];
+        $types = 'sssssss';
         $insertResult = executeSecure($con, $query, $params, $types);
 
         if ($insertResult) {
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = sani($_POST['email']);
         $password = sani($_POST['password']);
         $password_old = sani($_POST['password_old']);
+        $bank = isset($_POST['bank']) ? sani($_POST['bank']) : null;
 
         $resultGetSingleUser = querySecure($con, "SELECT photo_profile FROM users WHERE id = ?", [$id], 's');
         $singleUser = mysqli_fetch_assoc($resultGetSingleUser);
@@ -74,9 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password_hashed = $password_old;
         }
 
-        $query = "UPDATE users SET fullname = ?, username = ?, email = ?, password = ?, photo_profile = ? WHERE id = ?";
-        $params = [$fullname, $username, $email, $password_hashed, $photo_profile, $id];
-        $types = 'ssssss';
+        $query = "UPDATE users SET fullname = ?, username = ?, email = ?, password = ?, photo_profile = ?, bank = ? WHERE id = ?";
+        $params = [$fullname, $username, $email, $password_hashed, $photo_profile, $bank, $id];
+        $types = 'sssssss';
         $updateResult = executeSecure($con, $query, $params, $types);
 
         if ($updateResult) {
@@ -86,6 +88,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         redirectWithMessage('../?hal=users_user-management', 'Gagal memperbarui data user.', 'error');
     }
+
+    if (isset($_POST['bulkUpdateBank'])) {
+        $userIds = isset($_POST['user_ids']) && is_array($_POST['user_ids']) ? $_POST['user_ids'] : [];
+        $bank = isset($_POST['bank']) ? trim(sani($_POST['bank'])) : '';
+
+        if (empty($userIds)) {
+            redirectWithMessage('../?hal=users_user-management', 'Tidak ada user yang dipilih!', 'warning');
+        }
+
+        if (empty($bank)) {
+            redirectWithMessage('../?hal=users_user-management', 'Nama bank tidak boleh kosong!', 'warning');
+        }
+
+        $cleanIds = [];
+        foreach ($userIds as $uid) {
+            $cleaned = sani(trim($uid));
+            if (!empty($cleaned)) {
+                $cleanIds[] = $cleaned;
+            }
+        }
+
+        if (empty($cleanIds)) {
+            redirectWithMessage('../?hal=users_user-management', 'Daftar user tidak valid!', 'warning');
+        }
+
+        $placeholders = implode(',', array_fill(0, count($cleanIds), '?'));
+        $types = str_repeat('s', count($cleanIds) + 1);
+        $params = array_merge([$bank], $cleanIds);
+
+        $query = "UPDATE users SET bank = ? WHERE id IN ($placeholders)";
+        $updateResult = executeSecure($con, $query, $params, $types);
+
+        if ($updateResult) {
+            $count = count($cleanIds);
+            createLog($con, $_SESSION['admin']['email'], "Bulk updated bank to '$bank' for $count users");
+            redirectWithMessage('../?hal=users_user-management', "Berhasil memperbarui bank ($bank) untuk $count user terpilih!", 'success');
+        }
+
+        redirectWithMessage('../?hal=users_user-management', 'Gagal melakukan update bank secara masal.', 'error');
+    }
+
     exit;
 } elseif (isset($_GET['deleteUser'])) {
     $id = sani($_GET['deleteUser']);

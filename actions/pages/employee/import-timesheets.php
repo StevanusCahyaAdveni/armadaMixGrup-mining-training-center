@@ -213,9 +213,40 @@ if (!function_exists('matchEmployeeAdvanced')) {
     }
 }
 
-// AJAX Preview or Batch Save handling
+// AJAX Preview, Search Employees, or Batch Save handling
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
 
+// 1. Real-time Employee Search API for Select2
+if ($action === 'search_employees') {
+    header('Content-Type: application/json');
+    $q = isset($_GET['q']) ? sani($_GET['q']) : (isset($_POST['q']) ? sani($_POST['q']) : '');
+    
+    $where = "";
+    $params = [];
+    $types = "";
+    if (!empty($q)) {
+        $where = "WHERE full_name LIKE ? OR employee_id LIKE ?";
+        $searchTerm = "%$q%";
+        $params = [$searchTerm, $searchTerm];
+        $types = "ss";
+        $empRes = querySecure($con, "SELECT id, full_name, employee_id FROM employees $where ORDER BY full_name ASC LIMIT 50", $params, $types);
+    } else {
+        $empRes = querySecure($con, "SELECT id, full_name, employee_id FROM employees ORDER BY full_name ASC LIMIT 50", [], '');
+    }
+
+    $results = [];
+    while ($emp = mysqli_fetch_assoc($empRes)) {
+        $results[] = [
+            'id'   => $emp['id'],
+            'text' => $emp['full_name'] . (!empty($emp['employee_id']) ? ' (' . $emp['employee_id'] . ')' : '')
+        ];
+    }
+
+    echo json_encode(['results' => $results]);
+    exit;
+}
+
+// 2. Parse & Preview Excel Data
 if ($action === 'preview') {
     header('Content-Type: application/json');
     $rawText = isset($_POST['raw_data']) ? $_POST['raw_data'] : '';
@@ -225,7 +256,7 @@ if ($action === 'preview') {
         exit;
     }
 
-    // Fetch master employees
+    // Fetch master employees for initial matching
     $empRes = querySecure($con, "SELECT id, full_name, employee_id FROM employees ORDER BY full_name ASC", [], '');
     $employees = [];
     $normalizedEmpMap = [];
@@ -253,15 +284,25 @@ if ($action === 'preview') {
         $line = trim($line);
         if (empty($line)) continue;
 
+        // Skip if row only contains whitespace, dashes, tabs, or semicolons
+        $lineClean = preg_replace('/[\s\t\-\;\,]/', '', $line);
+        if (empty($lineClean)) continue;
+
         $cols = explode("\t", $line);
         // If copied with semicolon or comma instead of tab
         if (count($cols) < 5 && strpos($line, ';') !== false) {
             $cols = explode(';', $line);
         }
 
-        // Check if header line (skip if first col is Tanggal or contains Keterangan)
+        // Check if header or summary line (skip if first col is Tanggal, Keterangan, Total, Jumlah)
         $firstCol = trim($cols[0]);
-        if (stripos($firstCol, 'tanggal') !== false || stripos($firstCol, 'keterangan') !== false) {
+        if (
+            stripos($firstCol, 'tanggal') !== false || 
+            stripos($firstCol, 'keterangan') !== false ||
+            stripos($firstCol, 'total') !== false ||
+            stripos($firstCol, 'jumlah') !== false ||
+            stripos($firstCol, 'rekap') !== false
+        ) {
             continue;
         }
 
@@ -274,6 +315,23 @@ if ($action === 'preview') {
         $unitId       = isset($cols[3]) ? trim($cols[3]) : '';
         $operatorRaw  = isset($cols[4]) ? trim($cols[4]) : '';
 
+        // Clean operator name & unit to check for empty row
+        $operatorRawClean = trim($operatorRaw, " \t\n\r\0\x0B-");
+        $unitIdClean = trim($unitId, " \t\n\r\0\x0B-");
+
+        // Skip row if operator name is empty or only dash, or if it is a total/summary row
+        if (empty($operatorRawClean)) {
+            continue; // Skip empty row without operator
+        }
+
+        if (
+            stripos($operatorRawClean, 'total') !== false || 
+            stripos($operatorRawClean, 'jumlah') !== false || 
+            stripos($operatorRawClean, 'subtotal') !== false
+        ) {
+            continue;
+        }
+
         if ($is28Col) {
             // 28-column format with KM Unit
             $hmAwalRaw    = isset($cols[8]) ? trim($cols[8]) : '';
@@ -283,6 +341,7 @@ if ($action === 'preview') {
             $kerjaAkhirRaw= isset($cols[14]) ? trim($cols[14]) : '';
             $istAwalRaw   = isset($cols[15]) ? trim($cols[15]) : '';
             $istAkhirRaw  = isset($cols[16]) ? trim($cols[16]) : '';
+            $hmoRaw       = isset($cols[17]) ? trim($cols[17]) : '';
             $keterangan   = isset($cols[19]) ? trim($cols[19]) : '';
             $ritaseRaw    = isset($cols[20]) ? trim($cols[20]) : '0';
             $solarRaw     = isset($cols[21]) ? trim($cols[21]) : '0';
@@ -295,13 +354,10 @@ if ($action === 'preview') {
             $kerjaAkhirRaw= isset($cols[11]) ? trim($cols[11]) : '';
             $istAwalRaw   = isset($cols[12]) ? trim($cols[12]) : '';
             $istAkhirRaw  = isset($cols[13]) ? trim($cols[13]) : '';
+            $hmoRaw       = isset($cols[14]) ? trim($cols[14]) : '';
             $keterangan   = isset($cols[16]) ? trim($cols[16]) : '';
             $ritaseRaw    = isset($cols[17]) ? trim($cols[17]) : '0';
             $solarRaw     = isset($cols[18]) ? trim($cols[18]) : '0';
-        }
-
-        if (empty($operatorRaw) && empty($unitId) && empty($tanggalRaw)) {
-            continue; // Skip empty row
         }
 
         $tanggal = parseExcelDate($tanggalRaw);
@@ -318,38 +374,57 @@ if ($action === 'preview') {
         $restEnd = parseExcelTime($istAkhirRaw);
         $ritase = (int) parseExcelNumber($ritaseRaw);
         $solar = parseExcelNumber($solarRaw);
+        $hmoVal = parseExcelNumber($hmoRaw);
 
         // Employee matching
         list($matchedEmpId, $matchedEmpName) = matchEmployeeAdvanced($operatorRaw, $employees, $normalizedEmpMap);
 
-        $isNewEmployee = false;
         if (!empty($matchedEmpId)) {
             $matchedCount++;
+            $employeeId = $matchedEmpId;
+            $employeeName = $matchedEmpName;
         } else {
             $unmatchedCount++;
-            $isNewEmployee = true;
-            $matchedEmpId = '__NEW__';
-            $matchedEmpName = '[Karyawan Baru] ' . $operatorRaw;
+            $employeeId = null;
+            $employeeName = '';
         }
 
-        // Calculations based on 10-hour standard shifts (Pagi: 07:00-17:00, Malam: 19:00-05:00):
-        // S1 (Pokok): 7 Jam x 17.000 = Rp 119.000, Overtime = 0
-        // S2 (Lembur): 2 Jam x 17.000 = Rp 34.000, Overtime = 3.5 Jam x 19.509 = Rp 68.281,50
+        // Hitung Total HM Unit Mesin
         $totalHm = ($hmAkhir >= $hmAwal) ? ($hmAkhir - $hmAwal) : 0.00;
 
+        // Tentukan Jam Kerja Efektif Operator ($jamKerja / HMC):
+        // 1. Jika kolom HMO bernilai positif valid di Excel, gunakan langsung
+        // 2. Jika HMO kosong / minus (karena formula Excel malam tanpa modulo 24), hitung dari selisih waktu kerja - istirahat
+        // 3. Fallback: S1 = 7.00 jam, S2 = 2.00 jam
+        if ($hmoVal > 0) {
+            $jamKerja = $hmoVal;
+        } else {
+            $workMins = getMinutesDiff($waktuAwal, $waktuAkhir);
+            $istMins = ($restStart && $restEnd) ? getMinutesDiff($restStart, $restEnd) : 0;
+            $calcHours = ($workMins - $istMins) / 60;
+            if ($calcHours > 0) {
+                $jamKerja = round($calcHours, 2);
+            } else {
+                $jamKerja = $isOvertimeRow ? 2.00 : 7.00;
+            }
+        }
+
+        // HMC dan Insentif HM dihitung untuk semua baris (Shift 1 maupun Shift 2): Jam Kerja x Tarif HM (Rp 17.000)
+        $hmc = $jamKerja;
+        $earnedHmIncentive = (int) round($hmc * $tarif_hm);
+
         if ($isOvertimeRow) {
-            $hmc = 2.00; // S2 standard 2 Jam HM Lembur
-            $earnedHmIncentive = (int) round($hmc * $tarif_hm); // 2 x 17.000 = Rp 34.000
             $overtimeType = 'BIASA';
             $overtimeStart = $waktuAwal ?: ($shift === 'SIANG' ? '15:00:00' : '03:00:00');
             $overtimeEnd   = $waktuAkhir ?: ($shift === 'SIANG' ? '17:00:00' : '05:00:00');
-            $overtimeRestStart = null;
-            $overtimeRestEnd   = null;
+            $overtimeRestStart = $restStart;
+            $overtimeRestEnd   = $restEnd;
             $hmAwalLembur = $hmAwal;
             $hmAkhirLembur = $hmAkhir;
-            $overtimeAmount = (float) (3.5 * $tarif_lembur); // 3.5 x 19.509 = Rp 68.281,50
+            // Skema Lembur Baru: Jam Lembur (HMC) x Tarif Lembur (Rp 19.509)
+            $overtimeAmount = (float) round($hmc * $tarif_lembur, 2);
             
-            // For overtime row, regular time fields are kept 0/null
+            // Baris lembur (Shift 2)
             $regWaktuAwal = null;
             $regWaktuAkhir = null;
             $regRestStart = null;
@@ -357,11 +432,9 @@ if ($action === 'preview') {
             $regHmAwal = 0;
             $regHmAkhir = 0;
             $regTotalHm = 0;
-            $regHmc = 2.00;
-            $regIstHm = 0;
+            $regHmc = $jamKerja;
+            $regIstHm = ($restStart && $restEnd) ? round(getMinutesDiff($restStart, $restEnd) / 60, 2) : 0.00;
         } else {
-            $hmc = 7.00; // S1 standard 7 Jam HM Pokok
-            $earnedHmIncentive = (int) round($hmc * $tarif_hm); // 7 x 17.000 = Rp 119.000
             $overtimeType = 'NONE';
             $overtimeStart = null;
             $overtimeEnd = null;
@@ -371,6 +444,7 @@ if ($action === 'preview') {
             $hmAkhirLembur = null;
             $overtimeAmount = 0.00;
 
+            // Baris reguler (Shift 1)
             $regWaktuAwal = $waktuAwal ?: ($shift === 'SIANG' ? '07:00:00' : '19:00:00');
             $regWaktuAkhir = $waktuAkhir ?: ($shift === 'SIANG' ? '15:00:00' : '03:00:00');
             $regRestStart = $restStart ?: ($shift === 'SIANG' ? '12:00:00' : '00:00:00');
@@ -378,15 +452,15 @@ if ($action === 'preview') {
             $regHmAwal = $hmAwal;
             $regHmAkhir = $hmAkhir;
             $regTotalHm = $totalHm;
-            $regHmc = 7.00;
-            $regIstHm = 1.00;
+            $regHmc = $jamKerja;
+            $regIstHm = ($restStart && $restEnd) ? round(getMinutesDiff($restStart, $restEnd) / 60, 2) : 1.00;
         }
 
         $parsedRows[] = [
             'row_idx'            => count($parsedRows) + 1,
             'operator_raw'       => $operatorRaw,
-            'employee_id'        => $matchedEmpId,
-            'employee_name'      => $matchedEmpName,
+            'employee_id'        => $employeeId,
+            'employee_name'      => $employeeName,
             'tanggal'            => $tanggal,
             'shift'              => $shift,
             'shift_type'         => $shiftTypeRaw,
@@ -422,12 +496,12 @@ if ($action === 'preview') {
         'total_rows'     => count($parsedRows),
         'matched_count'  => $matchedCount,
         'unmatched_count'=> $unmatchedCount,
-        'rows'           => $parsedRows,
-        'employees'      => $employees
+        'rows'           => $parsedRows
     ]);
     exit;
 }
 
+// 3. Batch Save Timesheets (Strict validation - No auto-create)
 if ($action === 'save_batch') {
     header('Content-Type: application/json');
     $jsonData = file_get_contents('php://input');
@@ -441,8 +515,6 @@ if ($action === 'save_batch') {
     $items = $data['items'];
     $successCount = 0;
     $failedCount = 0;
-    $newEmployeesCreated = 0;
-    $createdNewEmpCache = [];
     $errors = [];
 
     // Begin database transaction
@@ -464,43 +536,18 @@ if ($action === 'save_batch') {
         $empId = isset($row['employee_id']) ? sani($row['employee_id']) : '';
         $rawOperatorName = isset($row['operator_raw']) ? trim($row['operator_raw']) : '';
 
-        // If marked as new employee or need to create new employee
-        if ($empId === '__NEW__' || (empty($empId) && !empty($row['is_new_employee']))) {
-            if (empty($rawOperatorName) || $rawOperatorName === '-') {
-                $failedCount++;
-                $errors[] = "Baris " . ($idx + 1) . ": Nama operator kosong, tidak dapat membuat karyawan baru.";
-                continue;
-            }
-
-            $normOp = enhancedNormalize($rawOperatorName);
-            if (isset($createdNewEmpCache[$normOp])) {
-                $empId = $createdNewEmpCache[$normOp];
-            } else {
-                // Check if already exists in DB
-                $checkQ = querySecure($con, "SELECT id FROM employees WHERE LOWER(full_name) = ? LIMIT 1", [strtolower($rawOperatorName)], 's');
-                if ($checkEmp = mysqli_fetch_assoc($checkQ)) {
-                    $empId = $checkEmp['id'];
-                } else {
-                    $newId = generate_uuid();
-                    $newEmpCode = 'EMP-' . strtoupper(substr(uniqid(), -5));
-                    $pos = 'Operator';
-                    $insEmp = executeSecure($con, "INSERT INTO employees (id, full_name, position, employee_id) VALUES (?, ?, ?, ?)", [$newId, $rawOperatorName, $pos, $newEmpCode], 'ssss');
-                    if ($insEmp) {
-                        $empId = $newId;
-                        $newEmployeesCreated++;
-                    } else {
-                        $failedCount++;
-                        $errors[] = "Baris " . ($idx + 1) . ": Gagal mendaftarkan karyawan baru '$rawOperatorName'.";
-                        continue;
-                    }
-                }
-                $createdNewEmpCache[$normOp] = $empId;
-            }
+        // Strict check: Employee must exist
+        if (empty($empId) || $empId === '__NEW__') {
+            $failedCount++;
+            $errors[] = "Baris " . ($idx + 1) . " (" . ($rawOperatorName ?: 'Tanpa Nama') . "): Karyawan belum dipilih di sistem.";
+            continue;
         }
 
-        if (empty($empId)) {
+        // Verify employee exists in DB
+        $checkQ = querySecure($con, "SELECT id FROM employees WHERE id = ? LIMIT 1", [$empId], 's');
+        if (!mysqli_fetch_assoc($checkQ)) {
             $failedCount++;
-            $errors[] = "Baris " . ($idx + 1) . " (" . ($rawOperatorName ?: 'Tanpa Nama') . "): Karyawan belum dipilih / tidak valid.";
+            $errors[] = "Baris " . ($idx + 1) . " (" . ($rawOperatorName ?: 'Tanpa Nama') . "): ID Karyawan tidak ditemukan di database.";
             continue;
         }
 
@@ -575,16 +622,14 @@ if ($action === 'save_batch') {
 
     if ($successCount > 0) {
         mysqli_commit($con);
-        $newEmpMsg = ($newEmployeesCreated > 0) ? " ($newEmployeesCreated karyawan baru berhasil otomatis didaftarkan)" : "";
-        $_SESSION['message'] = "Berhasil mengimpor $successCount data timesheet dari Excel!$newEmpMsg" . ($failedCount > 0 ? " ($failedCount baris dilewati)." : "");
+        $_SESSION['message'] = "Berhasil mengimpor $successCount data timesheet dari Excel!" . ($failedCount > 0 ? " ($failedCount baris dilewati)." : "");
         $_SESSION['message_type'] = $failedCount > 0 ? 'warning' : 'success';
         echo json_encode([
             'status'               => 'success',
             'success_count'        => $successCount,
             'failed_count'         => $failedCount,
-            'new_employees_count'  => $newEmployeesCreated,
             'errors'               => $errors,
-            'message'              => "Berhasil menyimpan $successCount data!$newEmpMsg"
+            'message'              => "Berhasil menyimpan $successCount data!"
         ]);
     } else {
         mysqli_rollback($con);

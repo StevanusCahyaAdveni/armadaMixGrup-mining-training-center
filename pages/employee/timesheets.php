@@ -549,6 +549,31 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
 }
 </script>
 
+<!-- Select2 CSS & Theme -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+<style>
+/* Custom styling for Select2 inside preview modal table */
+.select2-container--bootstrap-5 .select2-selection {
+    font-size: 11.5px !important;
+    min-height: 28px !important;
+    padding: 2px 4px !important;
+    border-color: #dee2e6;
+}
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    padding-left: 2px !important;
+    line-height: 22px !important;
+    font-size: 11.5px !important;
+}
+.select2-container--bootstrap-5 .select2-dropdown .select2-results__option {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+}
+.select2-container {
+    z-index: 99999 !important;
+}
+</style>
+
 <!-- Import / Paste Excel Modal -->
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95vw;">
@@ -593,12 +618,16 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <span class="badge bg-primary fs-6 cursor-pointer" id="badgeTotalRows" onclick="quickFilterStatus('ALL')" title="Klik untuk tampilkan semua" style="cursor: pointer;">0 Baris</span>
                             <span class="badge bg-success fs-6 cursor-pointer" id="badgeMatchedRows" onclick="quickFilterStatus('MATCHED')" title="Klik untuk filter Karyawan Cocok" style="cursor: pointer;">0 Karyawan Cocok</span>
-                            <span class="badge bg-info text-dark fs-6 cursor-pointer" id="badgeNewRows" onclick="quickFilterStatus('NEW')" title="Klik untuk filter Karyawan Baru" style="cursor: pointer; display:none;">0 Karyawan Baru</span>
-                            <span class="badge bg-warning text-dark fs-6 cursor-pointer" id="badgeUnmatchedRows" onclick="quickFilterStatus('UNSELECTED')" title="Klik untuk filter Belum Dipilih" style="cursor: pointer; display:none;">0 Belum Dipilih</span>
+                            <span class="badge bg-danger fs-6 cursor-pointer" id="badgeUnmatchedRows" onclick="quickFilterStatus('UNMATCHED')" title="Klik untuk filter Belum Cocok" style="cursor: pointer; display:none;">0 Belum Cocok</span>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="backToStep1()">
-                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Kotak Input
-                        </button>
+                        <div class="d-flex gap-2 align-items-center">
+                            <a href="?hal=employee_employees" target="_blank" class="btn btn-sm btn-outline-primary" title="Buka master karyawan di tab baru untuk tambah karyawan baru">
+                                <i class="bi bi-person-plus me-1"></i> Tambah Karyawan Baru (Tab Baru)
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="backToStep1()">
+                                <i class="bi bi-arrow-left me-1"></i> Kembali ke Kotak Input
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Search & Filter Controls -->
@@ -619,8 +648,7 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
                                     <select id="filterStatus" class="form-select form-select-sm" onchange="applyPreviewFilters()">
                                         <option value="ALL">Semua Status</option>
                                         <option value="MATCHED">✅ Karyawan Cocok</option>
-                                        <option value="NEW">➕ Karyawan Baru (Akan Dibuat)</option>
-                                        <option value="UNSELECTED">⚠️ Belum Dipilih / Kosong</option>
+                                        <option value="UNMATCHED">⚠️ Belum Cocok / Belum Dipilih</option>
                                     </select>
                                 </div>
                             </div>
@@ -630,8 +658,14 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
                         </div>
                     </div>
 
-                    <div id="unmatchedAlert" class="alert alert-info py-2 mb-2 shadow-sm" style="font-size: 12px; display: none;">
-                        <i class="bi bi-info-circle-fill me-1"></i> <b>Catatan:</b> Jika nama di Excel adalah karyawan baru, sistem otomatis menyetel opsi <b>➕ [Buat Karyawan Baru]</b> agar didaftarkan ke master karyawan. Anda juga tetap bisa menggantinya ke karyawan yang sudah ada melalui dropdown.
+                    <div id="unmatchedAlert" class="alert alert-warning py-2 mb-2 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2" style="font-size: 12.5px; display: none;">
+                        <div>
+                            <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i> 
+                            <b>Pemberitahuan:</b> Ada operator yang belum cocok di sistem. HR harus mendaftarkan karyawan terlebih dahulu di menu Karyawan. Dropdown karyawan di bawah terhubung <b>Realtime via API</b> (karyawan baru langsung muncul saat dicari).
+                        </div>
+                        <a href="?hal=employee_employees" target="_blank" class="btn btn-sm btn-primary py-0 px-2 text-white shadow-sm" style="font-size: 11.5px;">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Buka Master Karyawan
+                        </a>
                     </div>
 
                     <div class="table-responsive border rounded mb-3" style="max-height: 460px; font-size: 11px;">
@@ -647,7 +681,7 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
                                     <th>Tipe</th>
                                     <th>No Lambung</th>
                                     <th>Nama di Excel</th>
-                                    <th style="min-width: 260px;">Karyawan di Sistem</th>
+                                    <th style="min-width: 280px; width: 300px;">Pilih Karyawan di Sistem (Select2 Realtime)</th>
                                     <th>Jam Kerja / Lembur</th>
                                     <th>HM Awal - Akhir</th>
                                     <th>Total HM</th>
@@ -688,9 +722,12 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
     </div>
 </div>
 
+<!-- jQuery & Select2 JS -->
+<script src="assets/vendors/jquery/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 var globalParsedRows = [];
-var globalEmployees = [];
 
 function clearPasteArea() {
     document.getElementById('rawExcelData').value = '';
@@ -732,8 +769,6 @@ function processExcelPreview() {
         }
 
         globalParsedRows = data.rows || [];
-        globalEmployees = data.employees || [];
-
         renderPreviewTable(data);
     })
     .catch(function(err) {
@@ -749,7 +784,7 @@ function renderPreviewTable(data) {
     var tbody = document.getElementById('previewTableBody');
     tbody.innerHTML = '';
 
-    if (data.rows.length === 0) {
+    if (!data.rows || data.rows.length === 0) {
         tbody.innerHTML = '<tr><td colspan="17" class="text-center py-4 text-muted">Tidak ada data yang valid untuk ditampilkan.</td></tr>';
         updateSelectedSummary();
         return;
@@ -757,12 +792,9 @@ function renderPreviewTable(data) {
 
     data.rows.forEach(function(row, idx) {
         var tr = document.createElement('tr');
-        var isNew = (row.employee_id === '__NEW__');
-        var isMatched = (row.employee_id && row.employee_id !== '__NEW__');
+        var isMatched = (row.employee_id && row.employee_id.trim() !== '');
         
-        if (isNew) {
-            tr.className = 'table-info';
-        } else if (!isMatched) {
+        if (!isMatched) {
             tr.className = 'table-warning';
         }
 
@@ -783,18 +815,13 @@ function renderPreviewTable(data) {
         var insentifStr = row.earned_hm_incentive ? 'Rp ' + Number(row.earned_hm_incentive).toLocaleString('id-ID') : '-';
         var lemburStr = row.overtime_amount ? 'Rp ' + Number(row.overtime_amount).toLocaleString('id-ID') : '-';
 
-        var selectHtml = '<select class="form-select form-select-sm emp-select" style="font-size: 11px; padding: 2px 4px;" onchange="onEmployeeSelectChange(' + idx + ', this)">';
-        
-        // Option to create as new employee
-        var selectedNew = isNew ? 'selected' : '';
-        selectHtml += '<option value="__NEW__" ' + selectedNew + ' style="font-weight: bold; color: #0d6efd;">➕ [Buat Karyawan Baru] ' + escapeHtml(row.operator_raw) + '</option>';
-        selectHtml += '<option value="">-- Lewati / Kosongkan --</option>';
-        selectHtml += '<optgroup label="Pilih Karyawan Yang Sudah Ada:">';
-        globalEmployees.forEach(function(emp) {
-            var selected = (emp.id === row.employee_id) ? 'selected' : '';
-            selectHtml += '<option value="' + escapeHtml(emp.id) + '" ' + selected + '>' + escapeHtml(emp.full_name + ' (' + emp.employee_id + ')') + '</option>';
-        });
-        selectHtml += '</optgroup>';
+        // Build Select2 HTML with pre-selected option if matched
+        var selectHtml = '<select class="form-select form-select-sm emp-select2" data-idx="' + idx + '" style="width: 100%;">';
+        if (isMatched) {
+            selectHtml += '<option value="' + escapeHtml(row.employee_id) + '" selected>' + escapeHtml(row.employee_name || 'Karyawan Terpilih') + '</option>';
+        } else {
+            selectHtml += '<option value=""></option>';
+        }
         selectHtml += '</select>';
 
         tr.innerHTML = 
@@ -804,7 +831,7 @@ function renderPreviewTable(data) {
             '<td><span class="badge ' + (row.shift === 'MALAM' ? 'bg-dark' : 'bg-info text-dark') + '">' + escapeHtml(row.shift) + '</span></td>' +
             '<td>' + (row.is_overtime ? '<span class="badge bg-warning text-dark">Lembur (2)</span>' : '<span class="badge bg-secondary">Pokok (1)</span>') + '</td>' +
             '<td class="fw-bold">' + escapeHtml(row.unit_id || '-') + '</td>' +
-            '<td>' + escapeHtml(row.operator_raw) + '</td>' +
+            '<td class="fw-semibold">' + escapeHtml(row.operator_raw) + '</td>' +
             '<td>' + selectHtml + '</td>' +
             '<td>' + waktuStr + '</td>' +
             '<td>' + hmStr + '</td>' +
@@ -819,19 +846,61 @@ function renderPreviewTable(data) {
         tbody.appendChild(tr);
     });
 
+    // Initialize Select2 with AJAX Realtime Search for all rows
+    initSelect2ForPreview();
+
     updateSelectedSummary();
     applyPreviewFilters();
 }
 
-function onEmployeeSelectChange(idx, selectEl) {
+function initSelect2ForPreview() {
+    $('#previewTableBody .emp-select2').each(function() {
+        var $select = $(this);
+        $select.select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#importExcelModal'),
+            placeholder: '-- Cari / Pilih Karyawan --',
+            allowClear: true,
+            width: '100%',
+            ajax: {
+                url: 'actions/?hal=employee_import-timesheets&action=search_employees',
+                dataType: 'json',
+                delay: 200,
+                data: function(params) {
+                    return {
+                        q: params.term || ''
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results || []
+                    };
+                },
+                cache: false // Realtime: always query fresh data from server
+            }
+        }).on('select2:select', function(e) {
+            var idx = parseInt($(this).attr('data-idx'));
+            var selectedData = e.params.data;
+            onEmployeeSelectChange(idx, selectedData.id, selectedData.text, this);
+        }).on('select2:clear', function(e) {
+            var idx = parseInt($(this).attr('data-idx'));
+            onEmployeeSelectChange(idx, '', '', this);
+        });
+    });
+}
+
+function onEmployeeSelectChange(idx, empId, empName, selectEl) {
     if (globalParsedRows[idx]) {
-        globalParsedRows[idx].employee_id = selectEl.value;
+        globalParsedRows[idx].employee_id = empId || '';
+        globalParsedRows[idx].employee_name = empName || '';
+        
         var tr = selectEl.closest('tr');
-        tr.classList.remove('table-warning', 'table-info');
-        if (selectEl.value === '__NEW__') {
-            tr.classList.add('table-info');
-        } else if (!selectEl.value) {
-            tr.classList.add('table-warning');
+        if (tr) {
+            if (empId) {
+                tr.classList.remove('table-warning', 'table-danger');
+            } else {
+                tr.classList.add('table-warning');
+            }
         }
         updateSelectedSummary();
         applyPreviewFilters();
@@ -858,18 +927,14 @@ function applyPreviewFilters() {
         var row = globalParsedRows[idx];
         if (!row) return;
 
-        var isNew = (row.employee_id === '__NEW__');
-        var isMatched = (row.employee_id && row.employee_id !== '__NEW__');
-        var isUnselected = (!row.employee_id);
+        var isMatched = (row.employee_id && row.employee_id.trim() !== '');
 
         // Status match
         var statusMatch = true;
         if (status === 'MATCHED') {
             statusMatch = isMatched;
-        } else if (status === 'NEW') {
-            statusMatch = isNew;
-        } else if (status === 'UNSELECTED') {
-            statusMatch = isUnselected;
+        } else if (status === 'UNMATCHED') {
+            statusMatch = !isMatched;
         }
 
         // Text search match
@@ -920,13 +985,10 @@ function updateSelectedSummary() {
     document.getElementById('selectedCountText').innerText = totalSelected + ' dari ' + globalParsedRows.length + ' baris terpilih';
 
     var matchedCount = 0;
-    var newCount = 0;
     var emptyCount = 0;
 
     globalParsedRows.forEach(function(r) {
-        if (r.employee_id === '__NEW__') {
-            newCount++;
-        } else if (r.employee_id) {
+        if (r.employee_id && r.employee_id.trim() !== '') {
             matchedCount++;
         } else {
             emptyCount++;
@@ -936,26 +998,14 @@ function updateSelectedSummary() {
     document.getElementById('badgeTotalRows').innerText = globalParsedRows.length + ' Baris';
     document.getElementById('badgeMatchedRows').innerText = matchedCount + ' Karyawan Cocok';
     
-    var badgeNew = document.getElementById('badgeNewRows');
-    if (newCount > 0) {
-        badgeNew.style.display = 'inline-block';
-        badgeNew.innerText = newCount + ' Karyawan Baru (Akan Dibuat)';
-    } else {
-        badgeNew.style.display = 'none';
-    }
-
     var badgeUnmatched = document.getElementById('badgeUnmatchedRows');
     var alertUnmatched = document.getElementById('unmatchedAlert');
     if (emptyCount > 0) {
         badgeUnmatched.style.display = 'inline-block';
-        badgeUnmatched.innerText = emptyCount + ' Belum Dipilih';
+        badgeUnmatched.innerText = emptyCount + ' Belum Cocok';
+        alertUnmatched.style.display = 'flex';
     } else {
         badgeUnmatched.style.display = 'none';
-    }
-
-    if (newCount > 0 || emptyCount > 0) {
-        alertUnmatched.style.display = 'block';
-    } else {
         alertUnmatched.style.display = 'none';
     }
     
@@ -971,24 +1021,30 @@ function saveBatchImport() {
     }
 
     var itemsToSave = [];
-    var missingEmpNames = [];
+    var missingEmpRows = [];
 
     selectedCheckboxes.forEach(function(cb) {
         var idx = parseInt(cb.getAttribute('data-idx'));
         var row = globalParsedRows[idx];
         if (row) {
-            if (!row.employee_id) {
-                missingEmpNames.push('Baris ' + (idx + 1) + ' (' + row.operator_raw + ')');
+            if (!row.employee_id || row.employee_id.trim() === '') {
+                missingEmpRows.push('Baris ' + (idx + 1) + ': ' + (row.operator_raw || 'Tanpa Nama'));
+            } else {
+                itemsToSave.push(row);
             }
-            itemsToSave.push(row);
         }
     });
 
-    if (missingEmpNames.length > 0) {
-        var proceed = confirm('Peringatan: Ada ' + missingEmpNames.length + ' data yang belum dipilih karyawan di sistem:\n\n' + 
-            missingEmpNames.slice(0, 5).join('\n') + (missingEmpNames.length > 5 ? '\n...dan lainnya' : '') + 
-            '\n\nBaris tanpa karyawan akan dilewati. Lanjutkan menyimpan ' + (itemsToSave.length - missingEmpNames.length) + ' data yang valid?');
-        if (!proceed) return;
+    if (missingEmpRows.length > 0) {
+        alert('⚠️ Peringatan: Ada ' + missingEmpRows.length + ' baris data yang belum dipilih karyawan di sistem:\n\n' + 
+            missingEmpRows.slice(0, 8).join('\n') + (missingEmpRows.length > 8 ? '\n...dan ' + (missingEmpRows.length - 8) + ' baris lainnya' : '') + 
+            '\n\nSilakan pilih karyawan di dropdown terlebih dahulu (atau daftarkan dulu di menu Karyawan jika belum ada), atau hilangkan centang (uncheck) pada baris tersebut sebelum menyimpan!');
+        return;
+    }
+
+    if (itemsToSave.length === 0) {
+        alert('Tidak ada data valid yang dapat disimpan.');
+        return;
     }
 
     if (!confirm('Apakah Anda yakin ingin menyimpan ' + itemsToSave.length + ' data timesheet ke database?')) {

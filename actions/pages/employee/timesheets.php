@@ -55,8 +55,6 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
     $rateRow = mysqli_fetch_assoc($rateQuery);
     $applied_hm_rate = isset($rateRow['setting_value']) ? (int) $rateRow['setting_value'] : 17000;
-    
-    $earned_hm_incentive = (int) round($hmc * $applied_hm_rate);
 
     // Get Tarif Lembur
     $rateQuery2 = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
@@ -64,25 +62,33 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $tarif_lembur = isset($rateRow2['setting_value']) ? (float) $rateRow2['setting_value'] : 19509;
 
     $overtime_amount = 0;
-    if ($overtime_type !== 'NONE' && $overtime_start && $overtime_end) {
-        $diff_mins = getMinutesDiff($overtime_start, $overtime_end);
-        
-        $ot_rest_mins = 0;
-        if ($overtime_rest_start && $overtime_rest_end) {
-            $ot_rest_mins = getMinutesDiff($overtime_rest_start, $overtime_rest_end);
-        }
-        
-        $diff_hours = ($diff_mins - $ot_rest_mins) / 60;
-        if ($diff_hours < 0) $diff_hours = 0;
-        
-        // Per aturan baru: Lembur flat seragam (tidak ada aturan hari ke-6 & 7):
-        // 1 jam pertama x 1.5, jam berikutnya x 2.0 (2 jam kerja = 3.5 jam konversi lembur)
-        if ($diff_hours <= 1) {
-            $overtime_amount = $diff_hours * 1.5 * $tarif_lembur;
+    if ($overtime_type !== 'NONE') {
+        $ot_hours = 0;
+        if ($overtime_start && $overtime_end) {
+            $diff_mins = getMinutesDiff($overtime_start, $overtime_end);
+            $ot_rest_mins = 0;
+            if ($overtime_rest_start && $overtime_rest_end) {
+                $ot_rest_mins = getMinutesDiff($overtime_rest_start, $overtime_rest_end);
+            }
+            $ot_hours = ($diff_mins - $ot_rest_mins) / 60;
+            if ($ot_hours < 0) $ot_hours = 0;
+        } elseif ($hm_akhir_lembur && $hm_awal_lembur && $hm_akhir_lembur > $hm_awal_lembur) {
+            $ot_hours = $hm_akhir_lembur - $hm_awal_lembur;
         } else {
-            $overtime_amount = (1 * 1.5 * $tarif_lembur) + (($diff_hours - 1) * 2 * $tarif_lembur);
+            $ot_hours = $effective_work_hours;
         }
+
+        // Jika jam lembur terpisah dari jam reguler dalam satu form input, akumulasikan ke total HMC
+        if ($overtime_start && $overtime_end && $effective_work_hours > 0) {
+            $hmc = $effective_work_hours + $ot_hours;
+        }
+
+        // Sesuai skema baru: Jam lembur dikalikan tarif lembur (Rp 19.509)
+        $overtime_amount = round($ot_hours * $tarif_lembur, 2);
     }
+
+    // Insentif HM: Total Jam Kerja x Tarif HM (Rp 17.000)
+    $earned_hm_incentive = (int) round($hmc * $applied_hm_rate);
 
     if (isset($_POST['addData'])) {
         $id = generate_uuid();
