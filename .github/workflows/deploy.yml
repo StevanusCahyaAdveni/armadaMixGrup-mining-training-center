@@ -20,6 +20,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /www/wwwroot/mtc.armadamix.id
-            git pull origin main
-            # Jika nanti pakai Python, tambahkan baris di bawah ini:
-            # source venv/bin/activate && pip install -r requirements.txt
+            # Bersihkan lock atau stale ref jika terjadi desync
+            rm -f .git/refs/remotes/origin/main
+            rm -f .git/refs/remotes/origin/main.lock
+            git fetch --prune origin
+            git reset --hard origin/main
