@@ -36,6 +36,8 @@ $query = "SELECT
             e.gaji_pokok, 
             e.tunjangan_tetap,
             SUM(t.hmc) as total_hmc,
+            SUM(CASE WHEN t.shift_type = '1' THEN t.hmc ELSE 0 END) as hmc_s1,
+            SUM(CASE WHEN t.shift_type = '2' THEN t.hmc ELSE 0 END) as hmc_s2,
             SUM(t.earned_hm_incentive) as total_insentif_hm,
             SUM(t.ritase) as total_ritase,
             (SELECT SUM(CASE WHEN category = 'increasing' THEN value WHEN category = 'decreasing' THEN -value ELSE value END) 
@@ -169,10 +171,16 @@ $result = mysqli_query($con, $query);
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
                                 <!-- <td class="text-end">Rp <?= number_format($gaji_pokok, 0, ',', '.') ?></td>
                                 <td class="text-end">Rp <?= number_format($tunjangan, 0, ',', '.') ?></td> -->
-                                <td class="text-center fw-bold text-primary">
-                                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalTimesheets" onclick="openTimesheetsModal('<?= $row['employee_id'] ?>')">
+                                <td class="text-center">
+                                    <a href="#" class="fw-bold text-primary" data-bs-toggle="modal" data-bs-target="#modalTimesheets" onclick="openTimesheetsModal('<?= $row['employee_id'] ?>')">
                                         <?= number_format($hmc, 2, ',', '.') ?> H
                                     </a>
+                                    <?php if ($hmc > 0): ?>
+                                    <div class="mt-1" style="font-size: 10.5px;">
+                                        <span class="badge bg-secondary" title="Jam Kerja Shift 1 (Pokok)">S1: <?= number_format($row['hmc_s1'] ?? 0, 1, ',', '.') ?>H</span>
+                                        <span class="badge bg-warning text-dark" title="Jam Kerja Shift 2 (Lembur)">S2: <?= number_format($row['hmc_s2'] ?? 0, 1, ',', '.') ?>H</span>
+                                    </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-end">Rp <?= number_format($insentif_hm, 0, ',', '.') ?></td>
                                 <td class="text-end">
