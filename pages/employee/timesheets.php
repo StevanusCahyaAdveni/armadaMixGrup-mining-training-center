@@ -92,6 +92,7 @@ $pagination = makePagination($con, $query, 10);
                             <th>No</th>
                             <th>Tanggal</th>
                             <th>Shift</th>
+                            <th>Tipe Shift</th>
                             <th>Nama Operator</th>
                             <th>No Lambung</th>
                             <th>Waktu Awal</th>
@@ -118,7 +119,7 @@ $pagination = makePagination($con, $query, 10);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="20" class="text-center text-muted py-3">Belum ada data timesheet.</td>
+                                <td colspan="21" class="text-center text-muted py-3">Belum ada data timesheet.</td>
                             </tr>
                         <?php
                         else:
@@ -129,7 +130,14 @@ $pagination = makePagination($con, $query, 10);
                                 <tr class="pt-1 pb-1">
                                     <td><?= $no++ ?></td>
                                     <td><?= htmlspecialchars($row['tanggal']) ?></td>
-                                    <td><?= htmlspecialchars($row['shift']) ?></td>
+                                    <td><span class="badge <?= $row['shift'] === 'MALAM' ? 'bg-dark' : 'bg-info text-dark' ?>"><?= htmlspecialchars($row['shift']) ?></span></td>
+                                    <td>
+                                        <?php if ($row['shift_type'] == '2' || $row['overtime_type'] != 'NONE'): ?>
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Shift 2 (OT)</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary"><i class="bi bi-briefcase me-1"></i>Shift 1 (Pokok)</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= htmlspecialchars($row['full_name']) ?></td>
                                     <td><?= htmlspecialchars($row['unit_id']) ?></td>
                                     <td><?= htmlspecialchars($row['waktu_awal'] ? date('H:i', strtotime($row['waktu_awal'])) : '-') ?></td>
@@ -166,6 +174,7 @@ $pagination = makePagination($con, $query, 10);
                                             '<?= htmlspecialchars($row['employee_id']) ?>',
                                             '<?= htmlspecialchars($row['tanggal']) ?>',
                                             '<?= htmlspecialchars($row['shift']) ?>',
+                                            '<?= htmlspecialchars($row['shift_type'] ?? '1') ?>',
                                             '<?= htmlspecialchars($row['unit_id']) ?>',
                                             '<?= htmlspecialchars($row['waktu_awal'] ?? '') ?>',
                                             '<?= htmlspecialchars($row['waktu_akhir'] ?? '') ?>',
@@ -213,7 +222,7 @@ $pagination = makePagination($con, $query, 10);
             <form action="actions/?hal=employee_timesheets" method="POST">
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
+                        <div class="col-md-5 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
                             <label class="form-label">Pilih Karyawan / Operator</label>
                             <select class="form-select" name="employee_id" <?= $user_id_filter ? '' : 'required' ?>>
                                 <option value="">-- Pilih --</option>
@@ -232,11 +241,18 @@ $pagination = makePagination($con, $query, 10);
                             <label class="form-label">Tanggal</label>
                             <input type="date" class="form-control" name="tanggal" value="<?= date('Y-m-d') ?>" required>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Shift</label>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Shift (Waktu)</label>
                             <select class="form-select" name="shift" required>
                                 <option value="SIANG">SIANG</option>
                                 <option value="MALAM">MALAM</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Tipe Shift</label>
+                            <select class="form-select" name="shift_type" required>
+                                <option value="1">Shift 1 (Pokok)</option>
+                                <option value="2">Shift 2 (OT)</option>
                             </select>
                         </div>
                     </div>
@@ -353,7 +369,7 @@ $pagination = makePagination($con, $query, 10);
                 <div class="modal-body">
                     <input type="hidden" name="id" id="edit_id">
                     <div class="row">
-                        <div class="col-md-6 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
+                        <div class="col-md-5 mb-3 <?= $user_id_filter ? 'd-none' : '' ?>">
                             <label class="form-label">Pilih Karyawan / Operator</label>
                             <select class="form-select" name="employee_id" id="edit_employee_id" <?= $user_id_filter ? '' : 'required' ?>>
                                 <option value="">-- Pilih --</option>
@@ -372,11 +388,18 @@ $pagination = makePagination($con, $query, 10);
                             <label class="form-label">Tanggal</label>
                             <input type="date" class="form-control" name="tanggal" id="edit_tanggal" required>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label">Shift</label>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Shift (Waktu)</label>
                             <select class="form-select" name="shift" id="edit_shift" required>
                                 <option value="SIANG">SIANG</option>
                                 <option value="MALAM">MALAM</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Tipe Shift</label>
+                            <select class="form-select" name="shift_type" id="edit_shift_type" required>
+                                <option value="1">Shift 1 (Pokok)</option>
+                                <option value="2">Shift 2 (OT)</option>
                             </select>
                         </div>
                     </div>
@@ -478,7 +501,7 @@ $pagination = makePagination($con, $query, 10);
 </div>
 
 <script>
-function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhir, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur) {
+function upData(id, employee_id, tanggal, shift, shift_type, unit_id, waktu_awal, waktu_akhir, hm_awal, hm_akhir, rest_start, rest_end, ritase, solar, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur) {
     document.getElementById('edit_id').value = id;
     if (document.getElementById('edit_employee_id')) {
         document.getElementById('edit_employee_id').value = employee_id;
@@ -488,6 +511,9 @@ function upData(id, employee_id, tanggal, shift, unit_id, waktu_awal, waktu_akhi
     }
     document.getElementById('edit_tanggal').value = tanggal;
     document.getElementById('edit_shift').value = shift;
+    if (document.getElementById('edit_shift_type')) {
+        document.getElementById('edit_shift_type').value = shift_type || '1';
+    }
     document.getElementById('edit_unit_id').value = unit_id;
     document.getElementById('edit_waktu_awal').value = waktu_awal;
     document.getElementById('edit_waktu_akhir').value = waktu_akhir;
