@@ -521,8 +521,8 @@ if ($action === 'save_batch') {
     mysqli_begin_transaction($con);
 
     $insertQuery = "INSERT INTO employee_timesheets 
-        (id, employee_id, tanggal, shift, unit_id, hm_awal, hm_akhir, waktu_awal, waktu_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur, overtime_amount) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        (id, employee_id, tanggal, shift, shift_type, unit_id, hm_awal, hm_akhir, waktu_awal, waktu_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur, overtime_amount) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     $stmt = mysqli_prepare($con, $insertQuery);
 
@@ -554,6 +554,7 @@ if ($action === 'save_batch') {
         $id = generate_uuid();
         $tanggal = sani($row['tanggal']);
         $shift = in_array($row['shift'], ['SIANG', 'MALAM']) ? $row['shift'] : 'SIANG';
+        $shift_type = !empty($row['shift_type']) ? sani($row['shift_type']) : ($row['is_overtime'] ? '2' : '1');
         $unit_id = !empty($row['unit_id']) ? sani($row['unit_id']) : '-';
         $hm_awal = (float) ($row['hm_awal'] ?? 0);
         $hm_akhir = (float) ($row['hm_akhir'] ?? 0);
@@ -580,11 +581,12 @@ if ($action === 'save_batch') {
 
         mysqli_stmt_bind_param(
             $stmt,
-            "sssssddssssiddddiisssssssdd",
+            "ssssssddssssiddddiisssssssdd",
             $id,
             $empId,
             $tanggal,
             $shift,
+            $shift_type,
             $unit_id,
             $hm_awal,
             $hm_akhir,
