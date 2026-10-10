@@ -18,7 +18,7 @@ if (strpos($fullUrl, 'mtc.armadamix.id') !== false) {
     $dbUser = 'mtc_armadamix_id';
     $dbPass = '2KHmhr7E3JFKwyyZ';
     $dbName = 'mtc_armadamix_id';
-    error_reporting(0);
+    // error_reporting(0);
 } else {
     // Konfigurasi Local / Development
     $dbHost = 'localhost';
