@@ -6,6 +6,7 @@ if (!in_array($limit, [10, 25, 50, 100])) {
     $limit = 25;
 }
 $bank_filter = isset($_GET['bank_filter']) ? sani($_GET['bank_filter']) : '';
+$level_filter = isset($_GET['level_filter']) ? sani($_GET['level_filter']) : '';
 $search = isset($_GET['search']) ? sani(trim($_GET['search'])) : '';
 
 $whereClause = "";
@@ -19,6 +20,10 @@ if (!empty($bank_filter)) {
     } else {
         $whereClause .= " AND bank = '$bank_filter'";
     }
+}
+
+if (!empty($level_filter)) {
+    $whereClause .= " AND level = '$level_filter'";
 }
 
 $query = "SELECT * FROM employees WHERE 1=1 $whereClause ORDER BY full_name ASC";
@@ -60,7 +65,7 @@ $pagination = makePagination($con, $query, $limit);
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <div>
             <h5 class="mb-0 fw-bold"><i class="bi bi-person-badge text-primary me-2"></i>Data Karyawan (Employees)</h5>
-            <small class="text-muted">Kelola master data karyawan, jabatan, dan nomor rekening bank</small>
+            <small class="text-muted">Kelola master data karyawan, divisi / level (Mining / Hauling), jabatan, dan nomor rekening bank</small>
         </div>
         <button type="button" class="btn shadow-sm btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
             <i class="bi bi-plus-circle me-1"></i> Tambah Karyawan
@@ -73,13 +78,20 @@ $pagination = makePagination($con, $query, $limit);
             <form method="GET" action="">
                 <input type="hidden" name="hal" value="employee_employees">
                 <div class="row g-2 align-items-center">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" name="search" placeholder="Cari nama, NIK, jabatan, bank, no rekening..." value="<?= htmlspecialchars($search) ?>">
+                            <input type="text" class="form-control" name="search" placeholder="Cari nama, NIK, jabatan, bank..." value="<?= htmlspecialchars($search) ?>">
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <select name="level_filter" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">-- Semua Level --</option>
+                            <option value="mining" <?= $level_filter === 'mining' ? 'selected' : '' ?>>⚙️ Mining</option>
+                            <option value="hauling" <?= $level_filter === 'hauling' ? 'selected' : '' ?>>🚚 Hauling</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <select name="bank_filter" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">-- Semua Bank --</option>
                             <option value="UNSET" <?= $bank_filter === 'UNSET' ? 'selected' : '' ?>>⚠️ Belum di-set</option>
@@ -101,7 +113,7 @@ $pagination = makePagination($con, $query, $limit);
                     </div>
                     <div class="col-md-2 d-flex gap-1">
                         <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
-                        <?php if (!empty($search) || !empty($bank_filter)): ?>
+                        <?php if (!empty($search) || !empty($bank_filter) || !empty($level_filter)): ?>
                             <a href="?hal=employee_employees" class="btn btn-sm btn-outline-secondary" title="Reset Filter"><i class="bi bi-arrow-counterclockwise"></i></a>
                         <?php endif; ?>
                     </div>
@@ -122,6 +134,9 @@ $pagination = makePagination($con, $query, $limit);
                     <button type="button" class="btn btn-sm btn-outline-secondary bg-white" onclick="clearAllEmpSelections()">
                         <i class="bi bi-x-circle me-1"></i> Batal Pilihan
                     </button>
+                    <button type="button" class="btn btn-sm btn-warning px-3 shadow-sm text-dark" onclick="openBulkLevelEmpModal()">
+                        <i class="bi bi-tag-fill me-1"></i> <b>Set Level Masal</b>
+                    </button>
                     <button type="button" class="btn btn-sm btn-success px-3 shadow-sm" onclick="openBulkBankEmpModal()">
                         <i class="bi bi-bank2 me-1"></i> <b>Set Bank Masal</b>
                     </button>
@@ -141,6 +156,7 @@ $pagination = makePagination($con, $query, $limit);
                             <th width="50">No</th>
                             <th>NIK / ID</th>
                             <th>Nama Lengkap</th>
+                            <th>Level / Divisi</th>
                             <th>Jabatan (Position)</th>
                             <th>Bank & No. Rekening</th>
                             <th>Tanggal Bergabung</th>
@@ -153,13 +169,14 @@ $pagination = makePagination($con, $query, $limit);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">Tidak ada data karyawan yang ditemukan.</td>
+                                <td colspan="9" class="text-center text-muted py-4">Tidak ada data karyawan yang ditemukan.</td>
                             </tr>
                         <?php
                         else:
                             foreach ($pagination['data'] as $row): 
                                 $empBank = trim($row['bank'] ?? '');
                                 $empRek = trim($row['nomor_rekening'] ?? '');
+                                $empLevel = strtolower(trim($row['level'] ?? 'mining'));
                         ?>
                             <tr id="row-emp-<?= $row['id'] ?>">
                                 <td class="text-center">
@@ -168,6 +185,13 @@ $pagination = makePagination($con, $query, $limit);
                                 <td><?= $no++ ?></td>
                                 <td><code><?= htmlspecialchars($row['employee_id'] ?? '-') ?></code></td>
                                 <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                <td>
+                                    <?php if ($empLevel === 'hauling'): ?>
+                                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1"><i class="bi bi-truck me-1"></i>Hauling</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="bi bi-gear me-1"></i>Mining</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><span class="badge bg-secondary-subtle text-secondary border"><?= htmlspecialchars($row['position']) ?></span></td>
                                 <td>
                                     <?php if (!empty($empBank) && $empBank !== '-'): ?>
@@ -189,6 +213,7 @@ $pagination = makePagination($con, $query, $limit);
                                         '<?= htmlspecialchars($row['id']) ?>',
                                         '<?= htmlspecialchars(addslashes($row['full_name'])) ?>',
                                         '<?= htmlspecialchars(addslashes($row['position'])) ?>',
+                                        '<?= htmlspecialchars(addslashes($empLevel)) ?>',
                                         '<?= htmlspecialchars(addslashes($row['join_date'] ?? '')) ?>',
                                         '<?= htmlspecialchars(addslashes($row['employee_id'] ?? '')) ?>',
                                         '<?= htmlspecialchars(addslashes($empBank)) ?>',
@@ -230,9 +255,18 @@ $pagination = makePagination($con, $query, $limit);
                         <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" name="full_name" placeholder="Nama Lengkap Karyawan" required>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small fw-semibold">Jabatan / Posisi <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-sm" name="position" placeholder="Contoh: Operator Excavator, Driver DT..." required>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Level / Divisi <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" name="level" required>
+                                <option value="mining">⚙️ Mining (Alat Berat / Mining)</option>
+                                <option value="hauling">🚚 Hauling (Dump Truck / Hauling)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Jabatan / Posisi <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" name="position" placeholder="Contoh: Driver DT, OP Exca..." required>
+                        </div>
                     </div>
                     <div class="mb-2">
                         <label class="form-label small fw-semibold">NIK / ID Karyawan</label>
@@ -277,9 +311,18 @@ $pagination = makePagination($con, $query, $limit);
                         <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" name="full_name" id="edit_full_name" required>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small fw-semibold">Jabatan / Posisi <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-sm" name="position" id="edit_position" required>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Level / Divisi <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" name="level" id="edit_level" required>
+                                <option value="mining">⚙️ Mining</option>
+                                <option value="hauling">🚚 Hauling</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Jabatan / Posisi <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" name="position" id="edit_position" required>
+                        </div>
                     </div>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
@@ -299,6 +342,42 @@ $pagination = makePagination($con, $query, $limit);
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" name="updateData" class="btn btn-sm btn-primary"><i class="bi bi-check-circle me-1"></i>Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Bulk Update Level Karyawan -->
+<div class="modal fade" id="modalBulkLevelEmp" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalBulkLevelEmpLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header bg-warning text-dark py-2">
+                <h5 class="modal-title fs-6" id="modalBulkLevelEmpLabel">
+                    <i class="bi bi-tag-fill me-2"></i>Set Level Masal (Mining / Hauling)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="actions/?hal=employee_employees" method="post" id="bulkLevelEmpForm">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3 shadow-sm" style="font-size: 13px;">
+                        <i class="bi bi-info-circle-fill me-1"></i> Anda akan mengubah Level / Divisi secara masal untuk <b id="bulkModalLevelEmpCount">0</b> karyawan terpilih.
+                    </div>
+
+                    <!-- Container Hidden Inputs Employee IDs -->
+                    <div id="bulkLevelEmpIdsContainer"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Pilih Level / Divisi Baru <span class="text-danger">*</span></label>
+                        <select name="level" class="form-select" required>
+                            <option value="mining">⚙️ Mining (Operasional Alat Berat & Pit)</option>
+                            <option value="hauling">🚚 Hauling (Operasional DT & Pengangkutan)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" name="bulkUpdateLevel" class="btn btn-sm btn-warning text-dark px-3"><i class="bi bi-check2-circle me-1"></i>Simpan Perubahan Level</button>
                 </div>
             </form>
         </div>
@@ -363,10 +442,13 @@ $pagination = makePagination($con, $query, $limit);
 </div>
 
 <script>
-function upData(id, full_name, position, join_date, employee_id, bank, nomor_rekening) {
+function upData(id, full_name, position, level, join_date, employee_id, bank, nomor_rekening) {
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_full_name').value = full_name;
     document.getElementById('edit_position').value = position;
+    if (document.getElementById('edit_level')) {
+        document.getElementById('edit_level').value = level ? level.toLowerCase() : 'mining';
+    }
     document.getElementById('edit_join_date').value = join_date;
     document.getElementById('edit_bank').value = bank ? bank : '';
     document.getElementById('edit_nomor_rekening').value = nomor_rekening ? nomor_rekening : '';
@@ -376,6 +458,30 @@ function upData(id, full_name, position, join_date, employee_id, bank, nomor_rek
 
 function setQuickBankEmp(bankName) {
     document.getElementById('bulk_emp_bank_input').value = bankName;
+}
+
+function openBulkLevelEmpModal() {
+    const checked = document.querySelectorAll('.emp-checkbox:checked');
+    if (checked.length === 0) {
+        alert('Silakan pilih minimal 1 karyawan terlebih dahulu.');
+        return;
+    }
+
+    const container = document.getElementById('bulkLevelEmpIdsContainer');
+    container.innerHTML = '';
+
+    checked.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'employee_ids[]';
+        input.value = cb.value;
+        container.appendChild(input);
+    });
+
+    document.getElementById('bulkModalLevelEmpCount').innerText = checked.length;
+
+    const modal = new bootstrap.Modal(document.getElementById('modalBulkLevelEmp'));
+    modal.show();
 }
 
 // Shift + Click Checkbox Selection Logic for Employees

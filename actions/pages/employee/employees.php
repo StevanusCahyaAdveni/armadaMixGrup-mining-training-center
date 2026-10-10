@@ -6,14 +6,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = generate_uuid();
         $full_name = sani($_POST['full_name']);
         $position = sani($_POST['position']);
+        $level = !empty($_POST['level']) ? sani($_POST['level']) : 'mining';
         $join_date = sani($_POST['join_date']) ?: null;
         $employee_id = !empty($_POST['employee_id']) ? sani($_POST['employee_id']) : ('EMP-' . strtoupper(substr(uniqid(), -5)));
         $bank = !empty($_POST['bank']) ? sani($_POST['bank']) : null;
         $nomor_rekening = !empty($_POST['nomor_rekening']) ? sani($_POST['nomor_rekening']) : null;
 
-        $query = "INSERT INTO employees (id, full_name, position, join_date, employee_id, bank, nomor_rekening) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $params = [$id, $full_name, $position, $join_date, $employee_id, $bank, $nomor_rekening];
-        $types = 'sssssss';
+        $query = "INSERT INTO employees (id, full_name, position, level, join_date, employee_id, bank, nomor_rekening) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $params = [$id, $full_name, $position, $level, $join_date, $employee_id, $bank, $nomor_rekening];
+        $types = 'ssssssss';
         $insertResult = executeSecure($con, $query, $params, $types);
 
         if ($insertResult) {
@@ -32,13 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = sani($_POST['id']);
         $full_name = sani($_POST['full_name']);
         $position = sani($_POST['position']);
+        $level = !empty($_POST['level']) ? sani($_POST['level']) : 'mining';
         $join_date = sani($_POST['join_date']) ?: null;
         $bank = !empty($_POST['bank']) ? sani($_POST['bank']) : null;
         $nomor_rekening = !empty($_POST['nomor_rekening']) ? sani($_POST['nomor_rekening']) : null;
 
-        $query = "UPDATE employees SET full_name = ?, position = ?, join_date = ?, bank = ?, nomor_rekening = ? WHERE id = ?";
-        $params = [$full_name, $position, $join_date, $bank, $nomor_rekening, $id];
-        $types = 'ssssss';
+        $query = "UPDATE employees SET full_name = ?, position = ?, level = ?, join_date = ?, bank = ?, nomor_rekening = ? WHERE id = ?";
+        $params = [$full_name, $position, $level, $join_date, $bank, $nomor_rekening, $id];
+        $types = 'sssssss';
         $updateResult = executeSecure($con, $query, $params, $types);
 
         if ($updateResult) {
@@ -47,6 +49,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $_SESSION['message'] = 'Terjadi kesalahan saat memperbarui data.';
             $_SESSION['message_type'] = 'error';
+        }
+        $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_employees';
+        header("Location: $redirectUrl");
+        exit;
+    }
+
+    if (isset($_POST['bulkUpdateLevel'])) {
+        $employee_ids = isset($_POST['employee_ids']) && is_array($_POST['employee_ids']) ? $_POST['employee_ids'] : [];
+        $newLevel = isset($_POST['level']) ? trim(sani($_POST['level'])) : 'mining';
+
+        if (empty($employee_ids)) {
+            $_SESSION['message'] = 'Tidak ada karyawan yang dipilih!';
+            $_SESSION['message_type'] = 'warning';
+            $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_employees';
+            header("Location: $redirectUrl");
+            exit;
+        }
+
+        $cleanIds = [];
+        foreach ($employee_ids as $eid) {
+            $cleaned = sani(trim($eid));
+            if (!empty($cleaned)) {
+                $cleanIds[] = $cleaned;
+            }
+        }
+
+        if (!empty($cleanIds)) {
+            $placeholders = implode(',', array_fill(0, count($cleanIds), '?'));
+            $types = 's' . str_repeat('s', count($cleanIds));
+            $params = array_merge([$newLevel], $cleanIds);
+            $query = "UPDATE employees SET level = ? WHERE id IN ($placeholders)";
+            $updateResult = executeSecure($con, $query, $params, $types);
+
+            if ($updateResult) {
+                $count = count($cleanIds);
+                $levelText = ucfirst($newLevel);
+                $_SESSION['message'] = "Berhasil mengubah level ($levelText) untuk $count karyawan terpilih!";
+                $_SESSION['message_type'] = 'success';
+            } else {
+                $_SESSION['message'] = 'Gagal mengubah level karyawan.';
+                $_SESSION['message_type'] = 'error';
+            }
         }
         $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '../?hal=employee_employees';
         header("Location: $redirectUrl");
