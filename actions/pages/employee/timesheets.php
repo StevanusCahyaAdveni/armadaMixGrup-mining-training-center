@@ -61,13 +61,29 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
     $rateRow2 = mysqli_fetch_assoc($rateQuery2);
     $tarif_lembur = isset($rateRow2['setting_value']) ? (float) $rateRow2['setting_value'] : 19509;
 
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
+if (!function_exists('calcOvertimeAmount')) {
+    function calcOvertimeAmount($otHours, $rate = 19509) {
+        $effHours = calcEffectiveOtHours($otHours);
+        return round($effHours * $rate, 2);
+    }
+}
+
     $shift_type = isset($_POST['shift_type']) ? sani($_POST['shift_type']) : '1';
 
     $overtime_amount = 0;
     if ($shift_type === '2') {
-        // Shift 2 selalu dihitung sebagai lembur (OT)
+        // Shift 2 selalu dihitung sebagai lembur (OT) dengan skema 1.5x jam 1, 2x jam 2+
         $overtime_type = 'BIASA';
-        $overtime_amount = round($hmc * $tarif_lembur, 2);
+        $overtime_amount = calcOvertimeAmount($hmc, $tarif_lembur);
     } elseif ($overtime_type !== 'NONE') {
         $ot_hours = 0;
         if ($overtime_start && $overtime_end) {
@@ -89,8 +105,8 @@ if (isset($_POST['addData']) || isset($_POST['updateData'])) {
             $hmc = $effective_work_hours + $ot_hours;
         }
 
-        // Sesuai skema baru: Jam lembur dikalikan tarif lembur (Rp 19.509)
-        $overtime_amount = round($ot_hours * $tarif_lembur, 2);
+        // Sesuai skema baru: Jam 1 = 1.5x, Jam 2 dst = 2x x Tarif Lembur (Rp 19.509)
+        $overtime_amount = calcOvertimeAmount($ot_hours, $tarif_lembur);
     }
 
     // Insentif HM: Total Jam Kerja x Tarif HM (Rp 17.000)
