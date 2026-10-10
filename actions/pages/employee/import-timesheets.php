@@ -139,6 +139,22 @@ if (!function_exists('normalizeName')) {
     }
 }
 
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
+if (!function_exists('calcOvertimeAmount')) {
+    function calcOvertimeAmount($otHours, $rate = 19509) {
+        $effHours = calcEffectiveOtHours($otHours);
+        return round($effHours * $rate, 2);
+    }
+}
+
 // Helper: Advanced Employee Matching
 if (!function_exists('matchEmployeeAdvanced')) {
     function matchEmployeeAdvanced($operatorRaw, $employees, $normalizedEmpMap) {
@@ -421,8 +437,8 @@ if ($action === 'preview') {
             $overtimeRestEnd   = $restEnd;
             $hmAwalLembur = $hmAwal;
             $hmAkhirLembur = $hmAkhir;
-            // Skema Lembur Baru: Jam Lembur (HMC) x Tarif Lembur (Rp 19.509)
-            $overtimeAmount = (float) round($hmc * $tarif_lembur, 2);
+            // Skema Lembur Baru Depnaker: Jam 1 = 1.5x, Jam 2+ = 2x x Tarif Lembur (Rp 19.509)
+            $overtimeAmount = (float) calcOvertimeAmount($hmc, $tarif_lembur);
             
             // Baris lembur (Shift 2)
             $regWaktuAwal = null;
