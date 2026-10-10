@@ -198,6 +198,22 @@ if (!function_exists('matchHaulingDriver')) {
     }
 }
 
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
+if (!function_exists('calcOvertimeAmount')) {
+    function calcOvertimeAmount($otHours, $rate = 19509) {
+        $effHours = calcEffectiveOtHours($otHours);
+        return round($effHours * $rate, 2);
+    }
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
 
 // 1. Real-time Employee Search API for Select2
@@ -337,9 +353,9 @@ if ($action === 'preview') {
         $tonaseRate = ($shiftType === '2') ? (int) $tarif_tonase_s2 : (int) $tarif_tonase_s1;
         $earnedTonase = round($tonase * $tonaseRate, 2);
 
-        // HM & OT Calculation
+        // HM & OT Calculation with Depnaker Overtime Scale (1st hr 1.5x, 2nd hr+ 2x)
         $earnedHm = round($hmS1 * $tarif_hm, 2);
-        $earnedOt = round($otHours * $tarif_lembur, 2);
+        $earnedOt = calcOvertimeAmount($otHours, $tarif_lembur);
 
         // Employee Matching
         list($driverId, $driverName) = matchHaulingDriver($driverRaw, $employees, $normalizedEmpMap);

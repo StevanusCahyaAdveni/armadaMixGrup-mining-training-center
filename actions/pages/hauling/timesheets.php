@@ -17,6 +17,22 @@ $tonS2Q = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_k
 $tonS2Row = mysqli_fetch_assoc($tonS2Q);
 $tarif_tonase_s2 = isset($tonS2Row['setting_value']) ? (float) $tonS2Row['setting_value'] : 3500;
 
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
+if (!function_exists('calcOvertimeAmount')) {
+    function calcOvertimeAmount($otHours, $rate = 19509) {
+        $effHours = calcEffectiveOtHours($otHours);
+        return round($effHours * $rate, 2);
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['addData'])) {
         $id = generate_uuid();
@@ -57,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tonase_rate = ($shift_type === '2') ? (int) $tarif_tonase_s2 : (int) $tarif_tonase_s1;
         $earned_tonase_incentive = round($tonase * $tonase_rate, 2);
         $earned_hm_incentive = round($hm_s1 * $tarif_hm, 2);
-        $overtime_amount = round($ot_hours * $tarif_lembur, 2);
+        $overtime_amount = calcOvertimeAmount($ot_hours, $tarif_lembur);
 
         $query = "INSERT INTO hauling_timesheets (
             id, employee_id, substitute_employee_id, tanggal, unit_id,
@@ -139,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tonase_rate = ($shift_type === '2') ? (int) $tarif_tonase_s2 : (int) $tarif_tonase_s1;
         $earned_tonase_incentive = round($tonase * $tonase_rate, 2);
         $earned_hm_incentive = round($hm_s1 * $tarif_hm, 2);
-        $overtime_amount = round($ot_hours * $tarif_lembur, 2);
+        $overtime_amount = calcOvertimeAmount($ot_hours, $tarif_lembur);
 
         $query = "UPDATE hauling_timesheets SET
             employee_id = ?, substitute_employee_id = ?, tanggal = ?, unit_id = ?,

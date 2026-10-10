@@ -21,6 +21,32 @@ if (!empty($search)) {
     $whereClause .= " AND (e.full_name LIKE '%$search%' OR sub.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%')";
 }
 
+// Rates from settings
+$rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
+$rateRow = mysqli_fetch_assoc($rateQuery);
+$tarif_hm = isset($rateRow['setting_value']) ? (float) $rateRow['setting_value'] : 17000;
+
+$rateOtQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$rateOtRow = mysqli_fetch_assoc($rateOtQuery);
+$tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
+
+$tonS1Q = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_tonase_s1'");
+$tonS1Row = mysqli_fetch_assoc($tonS1Q);
+$tarif_tonase_s1 = isset($tonS1Row['setting_value']) ? (float) $tonS1Row['setting_value'] : 3000;
+
+$tonS2Q = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_tonase_s2'");
+$tonS2Row = mysqli_fetch_assoc($tonS2Q);
+$tarif_tonase_s2 = isset($tonS2Row['setting_value']) ? (float) $tonS2Row['setting_value'] : 3500;
+
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
 // Summary Metrics for the current filter
 $summaryQuery = "SELECT 
                     COUNT(t.id) as total_ritase,
@@ -28,7 +54,13 @@ $summaryQuery = "SELECT
                     SUM(t.total_km) as total_km,
                     SUM(t.earned_tonase_incentive) as total_insentif_tonase,
                     SUM(t.earned_hm_incentive) as total_insentif_hm,
-                    SUM(t.overtime_amount) as total_overtime
+                    SUM(
+                        (CASE 
+                            WHEN t.ot_hours <= 0 THEN 0 
+                            WHEN t.ot_hours <= 1 THEN t.ot_hours * 1.5 
+                            ELSE 1.5 + (t.ot_hours - 1) * 2 
+                        END) * $tarif_lembur
+                    ) as total_overtime
                  FROM hauling_timesheets t
                  LEFT JOIN employees e ON t.employee_id = e.id
                  LEFT JOIN employees sub ON t.substitute_employee_id = sub.id
@@ -173,7 +205,7 @@ $pagination = makePagination($con, $query, 15);
                 <table class="table table-sm table-hover table-striped align-middle mb-0" style="font-size: 11.5px; white-space: nowrap;">
                     <thead class="table-light">
                         <tr>
-                            <th width="40">No</th>
+                            <th width="35">No</th>
                             <th>Tanggal</th>
                             <th>Driver (Utama)</th>
                             <th>Pengganti</th>
@@ -182,13 +214,16 @@ $pagination = makePagination($con, $query, 15);
                             <th class="text-center">Shift</th>
                             <th class="text-end">Tonase (Ton)</th>
                             <th>KM (Awal / Akhir / Tot)</th>
-                            <th>Jam Mulai - Tiba</th>
+                            <th>Jam Operasi</th>
                             <th class="text-center">Cuci / Safety</th>
-                            <th class="text-center">HM / OT</th>
-                            <th class="text-end">Insentif Tonase</th>
-                            <th class="text-end">Insentif HM</th>
+                            <th class="text-end" style="background-color: #fef3c7 !important; color: #92400e !important;">Nominal Tonase</th>
+                            <th class="text-end">Nominal HM 1</th>
+                            <th class="text-end">Nominal HM 2</th>
+                            <th class="text-center">Jam OT</th>
+                            <th class="text-end" style="background-color: #eff6ff !important; color: #1e3a8a !important;">Uang Lembur (OT)</th>
+                            <th class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">Total Insentif HM</th>
                             <th>Keterangan</th>
-                            <th class="text-center" width="80">Aksi</th>
+                            <th class="text-center" width="70">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -197,12 +232,21 @@ $pagination = makePagination($con, $query, 15);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="16" class="text-center py-4 text-muted">Belum ada data timesheet hauling untuk periode ini.</td>
+                                <td colspan="19" class="text-center py-4 text-muted">Belum ada data timesheet hauling untuk periode ini.</td>
                             </tr>
                         <?php
                         else:
                             foreach ($pagination['data'] as $row): 
                                 $isShift2 = ($row['shift_type'] === '2' || $row['ritase_ke'] >= 2);
+
+                                $hmS1 = (float) $row['hm_s1'];
+                                $nomHm1 = $hmS1 * $tarif_hm;
+                                $nomHm2 = 0;
+
+                                $otHours = (float) $row['ot_hours'];
+                                $effOtHours = calcEffectiveOtHours($otHours);
+                                $nomOt = round($effOtHours * $tarif_lembur, 2);
+                                $totalHmRow = $nomHm1 + $nomHm2 + $nomOt;
                         ?>
                             <tr>
                                 <td><?= $no++ ?></td>
@@ -235,7 +279,7 @@ $pagination = makePagination($con, $query, 15);
                                     <span class="badge bg-light text-dark border ms-1"><?= number_format($row['total_km'], 0, ',', '.') ?> KM</span>
                                 </td>
                                 <td>
-                                    <?= $row['jam_mulai'] ? date('H:i', strtotime($row['jam_mulai'])) : '-' ?> s/d 
+                                    <?= $row['jam_mulai'] ? date('H:i', strtotime($row['jam_mulai'])) : '-' ?> → 
                                     <?= $row['jam_tiba_site'] ? date('H:i', strtotime($row['jam_tiba_site'])) : '-' ?>
                                 </td>
                                 <td class="text-center">
@@ -243,19 +287,37 @@ $pagination = makePagination($con, $query, 15);
                                     <?= $row['safety'] ? '<span class="badge bg-info-subtle text-info border border-info-subtle">Safety ✓</span>' : '' ?>
                                     <?= (!$row['cuci'] && !$row['safety']) ? '<span class="text-muted">-</span>' : '' ?>
                                 </td>
-                                <td class="text-center">
-                                    <?php if ($row['hm_s1'] > 0 || $row['ot_hours'] > 0): ?>
-                                        <span class="small fw-semibold"><?= $row['hm_s1'] ?>H / <?= $row['ot_hours'] ?>OT</span>
+                                <td class="text-end fw-bold" style="background-color: #fffbeb !important; color: #92400e !important;">
+                                    Rp <?= number_format($row['earned_tonase_incentive'], 0, ',', '.') ?>
+                                    <div class="text-muted small" style="font-size: 9.5px;">@Rp <?= number_format($row['tonase_rate'], 0, ',', '.') ?></div>
+                                </td>
+                                <td class="text-end">
+                                    <?php if ($nomHm1 > 0): ?>
+                                        Rp <?= number_format($nomHm1, 0, ',', '.') ?>
+                                        <div class="text-muted small" style="font-size: 9.5px;"><?= number_format($hmS1, 1) ?>H @17k</div>
                                     <?php else: ?>
                                         <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="text-end fw-bold text-primary">
-                                    Rp <?= number_format($row['earned_tonase_incentive'], 0, ',', '.') ?>
-                                    <div class="text-muted small" style="font-size: 9.5px;">@Rp <?= number_format($row['tonase_rate'], 0, ',', '.') ?></div>
+                                <td class="text-end">
+                                    <span class="text-muted">-</span>
                                 </td>
-                                <td class="text-end fw-semibold text-secondary">
-                                    Rp <?= number_format($row['earned_hm_incentive'] + $row['overtime_amount'], 0, ',', '.') ?>
+                                <td class="text-center">
+                                    <?php if ($otHours > 0): ?>
+                                        <span class="badge bg-light text-dark border" title="<?= $otHours ?> Jam Real = <?= $effOtHours ?> Jam Efektif"><?= number_format($otHours, 1, ',', '.') ?>H <small class="text-muted">(<?= number_format($effOtHours, 1, ',', '.') ?>J)</small></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">
+                                    <?php if ($nomOt > 0): ?>
+                                        Rp <?= number_format($nomOt, 0, ',', '.') ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">Rp 0</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">
+                                    Rp <?= number_format($totalHmRow, 0, ',', '.') ?>
                                 </td>
                                 <td>
                                     <?php if (!empty($row['keterangan'])): ?>
@@ -267,10 +329,10 @@ $pagination = makePagination($con, $query, 15);
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-warning shadow-sm py-0 px-2" onclick='upData(<?= json_encode($row) ?>)' title="Edit Data">
+                                    <button type="button" class="btn btn-sm btn-outline-warning shadow-sm py-0 px-2" onclick='upData(<?= json_encode($row) ?>)' title="Edit Data">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <a href="actions/?hal=hauling_timesheets&delete=<?= htmlspecialchars($row['id']) ?>" class="btn btn-sm btn-danger shadow-sm py-0 px-2" onclick="return confirm('Apakah yakin ingin menghapus baris timesheet ini?')" title="Hapus Data">
+                                    <a href="actions/?hal=hauling_timesheets&delete=<?= htmlspecialchars($row['id']) ?>" class="btn btn-sm btn-outline-danger shadow-sm py-0 px-2" onclick="return confirm('Apakah yakin ingin menghapus baris timesheet ini?')" title="Hapus Data">
                                         <i class="bi bi-trash"></i>
                                     </a>
                                 </td>

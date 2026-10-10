@@ -40,20 +40,53 @@ header('Content-Disposition: attachment; filename="Export_Timesheets_' . $start_
 
 $output = fopen('php://output', 'w');
 
-$headers = ['No', 'Tanggal', 'Shift', 'Nama Operator', 'No Lambung', 'Waktu Awal', 'Waktu Akhir', 'HM Awal', 'HM Akhir', 'Total HM', 'Istirahat Mulai', 'Istirahat Selesai', 'Total Istirahat', 'HMC', 'Ritase', 'Solar', 'Keterangan', 'Jenis Lembur', 'Jam Lembur Mulai', 'Jam Lembur Selesai', 'Istirahat Lembur Mulai', 'Istirahat Lembur Selesai', 'HM Awal Lembur', 'HM Akhir Lembur'];
-
-if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site') {
-    array_push($headers, 'Uang Lembur');
-}
+$headers = ['No', 'Tanggal', 'Shift', 'Tipe Shift', 'Nama Operator', 'No Lambung', 'Waktu Awal', 'Waktu Akhir', 'HM Awal', 'HM Akhir', 'Total HM', 'HMC (Jam)', 'Nominal HM 1', 'Nominal HM 2', 'Jam OT Real', 'Jam OT Efektif', 'Uang Lembur', 'Total Nominal', 'Ritase', 'Solar', 'Keterangan'];
 
 fputcsv($output, $headers, ';');
 
+$rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
+$rateRow = mysqli_fetch_assoc($rateQuery);
+$tarif_hm = isset($rateRow['setting_value']) ? (float) $rateRow['setting_value'] : 17000;
+
+$rateOtQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$rateOtRow = mysqli_fetch_assoc($rateOtQuery);
+$tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
+
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
 $no = 1;
 while ($row = mysqli_fetch_assoc($result)) {
+    $isShift2 = ($row['shift_type'] == '2' || $row['overtime_type'] != 'NONE');
+    $appliedRate = (float) ($row['applied_hm_rate'] ?: $tarif_hm);
+    $hmcVal = (float) $row['hmc'];
+
+    if (!$isShift2) {
+        $nomHm1 = $hmcVal * $appliedRate;
+        $nomHm2 = 0;
+        $otReal = 0;
+        $otEff = 0;
+        $nomOt = 0;
+    } else {
+        $nomHm1 = 0;
+        $nomHm2 = $hmcVal * $appliedRate;
+        $otReal = $hmcVal;
+        $otEff = calcEffectiveOtHours($otReal);
+        $nomOt = round($otEff * $tarif_lembur, 2);
+    }
+    $totalNominal = $nomHm1 + $nomHm2 + $nomOt;
+
     $rowData = [
         $no++,
         $row['tanggal'],
         $row['shift'],
+        $isShift2 ? 'Shift 2 (OT)' : 'Shift 1 (Pokok)',
         $row['full_name'],
         $row['unit_id'],
         $row['waktu_awal'] ? date('H:i', strtotime($row['waktu_awal'])) : '-',
@@ -61,25 +94,17 @@ while ($row = mysqli_fetch_assoc($result)) {
         $row['hm_awal'],
         $row['hm_akhir'],
         $row['total_hm'],
-        $row['rest_start'] ? date('H:i', strtotime($row['rest_start'])) : '-',
-        $row['rest_end'] ? date('H:i', strtotime($row['rest_end'])) : '-',
-        $row['ist_hm'],
         $row['hmc'],
+        $nomHm1,
+        $nomHm2,
+        $otReal,
+        $otEff,
+        $nomOt,
+        $totalNominal,
         $row['ritase'],
         $row['solar'],
-        $row['keterangan'] ?? '-',
-        $row['overtime_type'],
-        $row['overtime_start'] ? date('H:i', strtotime($row['overtime_start'])) : '-',
-        $row['overtime_end'] ? date('H:i', strtotime($row['overtime_end'])) : '-',
-        $row['overtime_rest_start'] ? date('H:i', strtotime($row['overtime_rest_start'])) : '-',
-        $row['overtime_rest_end'] ? date('H:i', strtotime($row['overtime_rest_end'])) : '-',
-        $row['hm_awal_lembur'] ?? '-',
-        $row['hm_akhir_lembur'] ?? '-'
+        $row['keterangan'] ?? '-'
     ];
-    
-    if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site') {
-        array_push($rowData, $row['overtime_amount'] ?? 0);
-    }
     
     fputcsv($output, $rowData, ';');
 }

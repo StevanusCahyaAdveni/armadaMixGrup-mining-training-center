@@ -21,6 +21,15 @@ $tonS2Q = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_k
 $tonS2Row = mysqli_fetch_assoc($tonS2Q);
 $tarif_tonase_s2 = isset($tonS2Row['setting_value']) ? (float) $tonS2Row['setting_value'] : 3500;
 
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
 // Query: Group by driver in hauling_timesheets + employees with level 'hauling'
 $query = "SELECT 
             e.id as employee_id, 
@@ -40,8 +49,24 @@ $query = "SELECT
             SUM(t.earned_tonase_incentive) as total_insentif_tonase,
             SUM(t.hm_s1) as total_hm_s1,
             SUM(t.ot_hours) as total_ot_hours,
+            SUM(
+                CASE 
+                    WHEN t.ot_hours <= 0 THEN 0
+                    WHEN t.ot_hours <= 1 THEN t.ot_hours * 1.5
+                    ELSE 1.5 + (t.ot_hours - 1) * 2
+                END
+            ) as total_eff_ot_hours,
             SUM(t.earned_hm_incentive) as total_insentif_hm,
-            SUM(t.overtime_amount) as total_overtime,
+            SUM(
+                CASE 
+                    WHEN t.overtime_amount > 0 THEN t.overtime_amount
+                    ELSE (CASE 
+                            WHEN t.ot_hours <= 0 THEN 0
+                            WHEN t.ot_hours <= 1 THEN t.ot_hours * 1.5
+                            ELSE 1.5 + (t.ot_hours - 1) * 2
+                          END) * $tarif_lembur
+                END
+            ) as total_overtime,
             (SELECT SUM(CASE WHEN category = 'increasing' THEN value WHEN category = 'decreasing' THEN -value ELSE value END) 
              FROM employee_salary_increasing_decreasing s 
              WHERE s.user_id = e.id AND s.date BETWEEN '$start_date' AND '$end_date') as penambah_pengurang
@@ -76,8 +101,8 @@ if ($result) {
         if ($r['total_insentif_hm'] <= 0 && $r['total_hm_s1'] > 0) {
             $r['total_insentif_hm'] = $r['total_hm_s1'] * $tarif_hm;
         }
-        if ($r['total_overtime'] <= 0 && $r['total_ot_hours'] > 0) {
-            $r['total_overtime'] = $r['total_ot_hours'] * $tarif_lembur;
+        if ($r['total_overtime'] <= 0 && $r['total_eff_ot_hours'] > 0) {
+            $r['total_overtime'] = $r['total_eff_ot_hours'] * $tarif_lembur;
         }
 
         $gapok = (float) ($r['gaji_pokok'] ?? 0);
@@ -137,8 +162,9 @@ if ($result) {
                 <div class="col-md-4">
                     <div class="border rounded p-2 bg-white h-100">
                         <b>2. Skema HM (Standard Mining):</b><br>
-                        • Shift 1 (Pokok): <b>HM S1 &times; Rp <?= number_format($tarif_hm, 0, ',', '.') ?></b> (Standard 7H)<br>
-                        • Overtime (OT): <b>Jam OT &times; Rp <?= number_format($tarif_lembur, 0, ',', '.') ?></b> (Standard 2H)
+                        • Shift 1 (Pokok): <b>HM S1 &times; Rp <?= number_format($tarif_hm, 0, ',', '.') ?></b><br>
+                        • Overtime (OT): <b>Jam Efektif &times; Rp <?= number_format($tarif_lembur, 0, ',', '.') ?></b><br>
+                        <small class="text-primary">*Formula Lembur: 1 jam pertama = 1.5x, jam ke-2 dst = 2x</small>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -385,7 +411,7 @@ if ($result) {
                             <th class="text-center">Total Rit</th>
                             <th class="text-center">HM Shift 1 (Pokok)</th>
                             <th class="text-end">Insentif HM (@17.000)</th>
-                            <th class="text-center">Overtime (Jam OT)</th>
+                            <th class="text-center">Jam OT (Real/Efektif)</th>
                             <th class="text-end">Uang Lembur (@19.509)</th>
                             <th class="text-end fw-bold" style="background-color: #dbeafe !important; color: #1e3a8a !important;">Total Insentif HM</th>
                             <th class="text-end">Penambah/Pengurang</th>
@@ -427,7 +453,12 @@ if ($result) {
                                 </td>
                                 <td class="text-center"><?= number_format($row['total_hm_s1'], 1, ',', '.') ?> H</td>
                                 <td class="text-end">Rp <?= number_format($row['total_insentif_hm'], 0, ',', '.') ?></td>
-                                <td class="text-center"><?= number_format($row['total_ot_hours'], 1, ',', '.') ?> Jam</td>
+                                <td class="text-center">
+                                    <b><?= number_format($row['total_ot_hours'], 1, ',', '.') ?> Jam</b>
+                                    <?php if ((float)$row['total_eff_ot_hours'] > (float)$row['total_ot_hours']): ?>
+                                        <br><span class="badge bg-warning-subtle text-dark border" style="font-size: 10px;" title="Jam Lembur Efektif (1.5x jam ke-1, 2x jam ke-2 dst)">Ef: <?= number_format($row['total_eff_ot_hours'], 1, ',', '.') ?> Jam</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-end">Rp <?= number_format($row['total_overtime'], 0, ',', '.') ?></td>
                                 <td class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">
                                     Rp <?= number_format($totalInsHmOt, 0, ',', '.') ?>

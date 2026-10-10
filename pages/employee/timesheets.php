@@ -21,6 +21,23 @@ if (!empty($search)) {
     $whereClause .= " AND (e.full_name LIKE '%$search%' OR t.unit_id LIKE '%$search%')";
 }
 
+$rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
+$rateRow = mysqli_fetch_assoc($rateQuery);
+$tarif_hm = isset($rateRow['setting_value']) ? (float) $rateRow['setting_value'] : 17000;
+
+$rateOtQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$rateOtRow = mysqli_fetch_assoc($rateOtQuery);
+$tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
+
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
 $query = "SELECT t.*, e.full_name 
           FROM employee_timesheets t 
           LEFT JOIN employees e ON t.employee_id = e.id 
@@ -86,32 +103,27 @@ $pagination = makePagination($con, $query, 10);
         <!-- Data Table -->
         <div class="card p-2 mb-1 shadow-sm">
             <div class="table-responsive">
-                <table class="table table-sm table-hover table-striped" style="font-size: 12px; white-space: nowrap;">
-                    <thead>
+                <table class="table table-sm table-hover table-striped align-middle" style="font-size: 11.5px; white-space: nowrap;">
+                    <thead class="table-light">
                         <tr>
-                            <th>No</th>
+                            <th width="35">No</th>
                             <th>Tanggal</th>
                             <th>Shift</th>
                             <th>Tipe Shift</th>
                             <th>Nama Operator</th>
                             <th>No Lambung</th>
-                            <th>Waktu Awal</th>
-                            <th>Waktu Akhir</th>
-                            <th>HM Awal</th>
-                            <th>HM Akhir</th>
+                            <th>Waktu Kerja</th>
+                            <th>HM Awal / Akhir</th>
                             <th>Total HM</th>
-                            <th>Istirahat</th>
-                            <th>HMC</th>
-                            <th>Ritase</th>
-                            <th>Solar</th>
+                            <th>HMC (Jam)</th>
+                            <th class="text-end">Nominal HM 1</th>
+                            <th class="text-end">Nominal HM 2</th>
+                            <th class="text-center">Jam OT</th>
+                            <th class="text-end" style="background-color: #eff6ff !important; color: #1e3a8a !important;">Uang Lembur (OT)</th>
+                            <th class="text-end fw-bold" style="background-color: #ecfdf5 !important; color: #047857 !important;">Total Nominal</th>
+                            <th>Ritase / Solar</th>
                             <th>Keterangan</th>
-                            <th>Jenis Lembur</th>
-                            <th>Jam Lembur</th>
-                            <th>Istirahat Lembur</th>
-                            <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
-                            <th>Uang Lembur</th>
-                            <?php endif; ?>
-                            <th>Aksi</th>
+                            <th class="text-center" width="70">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -119,57 +131,92 @@ $pagination = makePagination($con, $query, 10);
                         if (empty($pagination['data'])):
                         ?>
                             <tr>
-                                <td colspan="21" class="text-center text-muted py-3">Belum ada data timesheet.</td>
+                                <td colspan="18" class="text-center text-muted py-3">Belum ada data timesheet.</td>
                             </tr>
                         <?php
                         else:
                             $no = $pagination['from'];
                             foreach ($pagination['data'] as $row): 
                                 $ist_display = ($row['rest_start'] && $row['rest_end']) ? date('H:i', strtotime($row['rest_start'])) . ' - ' . date('H:i', strtotime($row['rest_end'])) : '-';
+                                $isShift2 = ($row['shift_type'] == '2' || $row['overtime_type'] != 'NONE');
+                                $appliedRate = (float) ($row['applied_hm_rate'] ?: $tarif_hm);
+                                $hmcVal = (float) $row['hmc'];
+
+                                // Hitung Breakdown Nominal HM1 & HM2
+                                if (!$isShift2) {
+                                    $nomHm1 = $hmcVal * $appliedRate;
+                                    $nomHm2 = 0;
+                                    $otHours = 0;
+                                    $effOtHours = 0;
+                                    $nomOt = 0;
+                                } else {
+                                    $nomHm1 = 0;
+                                    $nomHm2 = $hmcVal * $appliedRate;
+                                    $otHours = $hmcVal;
+                                    $effOtHours = calcEffectiveOtHours($otHours);
+                                    // Hitung lembur dengan formula 1.5x jam 1, 2x jam 2+
+                                    $nomOt = round($effOtHours * $tarif_lembur, 2);
+                                }
+
+                                $totalRow = $nomHm1 + $nomHm2 + $nomOt;
                             ?>
                                 <tr class="pt-1 pb-1">
                                     <td><?= $no++ ?></td>
                                     <td><?= htmlspecialchars($row['tanggal']) ?></td>
                                     <td><span class="badge <?= $row['shift'] === 'MALAM' ? 'bg-dark' : 'bg-info text-dark' ?>"><?= htmlspecialchars($row['shift']) ?></span></td>
                                     <td>
-                                        <?php if ($row['shift_type'] == '2' || $row['overtime_type'] != 'NONE'): ?>
+                                        <?php if ($isShift2): ?>
                                             <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Shift 2 (OT)</span>
                                         <?php else: ?>
                                             <span class="badge bg-secondary"><i class="bi bi-briefcase me-1"></i>Shift 1 (Pokok)</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= htmlspecialchars($row['full_name']) ?></td>
-                                    <td><?= htmlspecialchars($row['unit_id']) ?></td>
-                                    <td><?= htmlspecialchars($row['waktu_awal'] ? date('H:i', strtotime($row['waktu_awal'])) : '-') ?></td>
-                                    <td><?= htmlspecialchars($row['waktu_akhir'] ? date('H:i', strtotime($row['waktu_akhir'])) : '-') ?></td>
-                                    <td><?= htmlspecialchars($row['hm_awal']) ?></td>
-                                    <td><?= htmlspecialchars($row['hm_akhir']) ?></td>
+                                    <td class="fw-bold"><?= htmlspecialchars($row['full_name']) ?></td>
+                                    <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($row['unit_id']) ?></span></td>
+                                    <td>
+                                        <?= htmlspecialchars($row['waktu_awal'] ? date('H:i', strtotime($row['waktu_awal'])) : '-') ?> → 
+                                        <?= htmlspecialchars($row['waktu_akhir'] ? date('H:i', strtotime($row['waktu_akhir'])) : '-') ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($row['hm_awal']) ?> → <?= htmlspecialchars($row['hm_akhir']) ?></td>
                                     <td class="fw-bold text-primary"><?= htmlspecialchars($row['total_hm']) ?></td>
-                                    <td><?= $ist_display ?> <small class="text-muted">(<?= $row['ist_hm'] ?>H)</small></td>
-                                    <td class="fw-bold text-success"><?= htmlspecialchars($row['hmc']) ?></td>
-                                    <td><?= htmlspecialchars($row['ritase']) ?></td>
-                                    <td><?= htmlspecialchars($row['solar']) ?></td>
-                                    <td><?= htmlspecialchars($row['keterangan'] ?? '-') ?></td>
-                                    <td><?= htmlspecialchars($row['overtime_type'] == 'NONE' ? '-' : $row['overtime_type']) ?></td>
-                                    <td>
-                                        <?php if ($row['overtime_type'] != 'NONE' && $row['overtime_start']): ?>
-                                            <?= date('H:i', strtotime($row['overtime_start'])) ?> - <?= date('H:i', strtotime($row['overtime_end'])) ?>
+                                    <td class="fw-bold text-success"><?= number_format($hmcVal, 2, ',', '.') ?> H</td>
+                                    <td class="text-end">
+                                        <?php if ($nomHm1 > 0): ?>
+                                            <span class="text-dark">Rp <?= number_format($nomHm1, 0, ',', '.') ?></span>
                                         <?php else: ?>
-                                            -
+                                            <span class="text-muted">-</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
-                                        <?php if ($row['overtime_rest_start'] && $row['overtime_rest_end']): ?>
-                                            <?= date('H:i', strtotime($row['overtime_rest_start'])) ?> - <?= date('H:i', strtotime($row['overtime_rest_end'])) ?>
+                                    <td class="text-end">
+                                        <?php if ($nomHm2 > 0): ?>
+                                            <span class="text-dark">Rp <?= number_format($nomHm2, 0, ',', '.') ?></span>
                                         <?php else: ?>
-                                            -
+                                            <span class="text-muted">-</span>
                                         <?php endif; ?>
                                     </td>
-                                    <?php if (isset($_SESSION['admin']['role']) && $_SESSION['admin']['role'] !== 'HR Site'): ?>
-                                    <td class="text-end fw-bold text-success">Rp <?= number_format($row['overtime_amount'] ?? 0, 0, ',', '.') ?></td>
-                                    <?php endif; ?>
+                                    <td class="text-center">
+                                        <?php if ($otHours > 0): ?>
+                                            <span class="badge bg-light text-dark border" title="<?= $otHours ?> Jam Real = <?= $effOtHours ?> Jam Efektif"><?= number_format($otHours, 1, ',', '.') ?>H <small class="text-muted">(<?= number_format($effOtHours, 1, ',', '.') ?>J)</small></span>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">
+                                        <?php if ($nomOt > 0): ?>
+                                            Rp <?= number_format($nomOt, 0, ',', '.') ?>
+                                        <?php else: ?>
+                                            <span class="text-muted">Rp 0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end fw-bold" style="background-color: #ecfdf5 !important; color: #047857 !important;">
+                                        Rp <?= number_format($totalRow, 0, ',', '.') ?>
+                                    </td>
                                     <td>
-                                        <button type="button" class="btn btn-sm btn-warning" onclick="upData(
+                                        <small><?= htmlspecialchars($row['ritase']) ?> Rit | <?= htmlspecialchars($row['solar']) ?> L</small>
+                                    </td>
+                                    <td><small class="text-muted"><?= htmlspecialchars($row['keterangan'] ?? '-') ?></small></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2" onclick="upData(
                                             '<?= $row['id'] ?>',
                                             '<?= htmlspecialchars($row['employee_id']) ?>',
                                             '<?= htmlspecialchars($row['tanggal']) ?>',
@@ -195,7 +242,7 @@ $pagination = makePagination($con, $query, 10);
                                         )">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <a href="actions/?hal=employee_timesheets&delete=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                        <a href="actions/?hal=employee_timesheets&delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="return confirm('Yakin ingin menghapus data ini?')">
                                             <i class="bi bi-trash"></i>
                                         </a>
                                     </td>

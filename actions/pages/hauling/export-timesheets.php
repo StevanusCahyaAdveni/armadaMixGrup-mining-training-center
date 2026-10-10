@@ -47,13 +47,37 @@ $headers = [
     'Jam Bongkar', 'TIMBANG AHKIR', 'Timbangan Awal - Ahkir',
     'Jam Tiba Site', 'Timbangan Ahkir - Site',
     'Rest Time', 'P5M', 'Cuci', 'Safety',
-    'HM S1', 'OT', 'Tarif Tonase', 'Insentif Tonase', 'Insentif HM', 'Uang Lembur', 'Keterangan'
+    'Nominal Tonase', 'HM S1 (Jam)', 'Nominal HM 1', 'Jam OT Real', 'Jam OT Efektif', 'Uang Lembur (OT)', 'Total Insentif HM', 'Keterangan'
 ];
 
 fputcsv($output, $headers, ';');
 
+$rateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_hm'");
+$rateRow = mysqli_fetch_assoc($rateQuery);
+$tarif_hm = isset($rateRow['setting_value']) ? (float) $rateRow['setting_value'] : 17000;
+
+$rateOtQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$rateOtRow = mysqli_fetch_assoc($rateOtQuery);
+$tarif_lembur = isset($rateOtRow['setting_value']) ? (float) $rateOtRow['setting_value'] : 19509;
+
+if (!function_exists('calcEffectiveOtHours')) {
+    function calcEffectiveOtHours($otHours) {
+        $ot = (float) $otHours;
+        if ($ot <= 0) return 0.0;
+        if ($ot <= 1) return $ot * 1.5;
+        return 1.5 + ($ot - 1) * 2.0;
+    }
+}
+
 $no = 1;
 while ($row = mysqli_fetch_assoc($result)) {
+    $hmS1 = (float) $row['hm_s1'];
+    $nomHm1 = $hmS1 * $tarif_hm;
+    $otReal = (float) $row['ot_hours'];
+    $otEff = calcEffectiveOtHours($otReal);
+    $nomOt = round($otEff * $tarif_lembur, 2);
+    $totalHm = $nomHm1 + $nomOt;
+
     $rowData = [
         $no++,
         $row['tanggal'],
@@ -79,12 +103,13 @@ while ($row = mysqli_fetch_assoc($result)) {
         $row['p5m_time'] ? date('H:i', strtotime($row['p5m_time'])) : '-',
         ($row['cuci'] ? 'Ya' : 'Tidak'),
         ($row['safety'] ? 'Ya' : 'Tidak'),
-        $row['hm_s1'],
-        $row['ot_hours'],
-        $row['tonase_rate'],
         $row['earned_tonase_incentive'],
-        $row['earned_hm_incentive'],
-        $row['overtime_amount'],
+        $hmS1,
+        $nomHm1,
+        $otReal,
+        $otEff,
+        $nomOt,
+        $totalHm,
         $row['keterangan'] ?? '-'
     ];
     

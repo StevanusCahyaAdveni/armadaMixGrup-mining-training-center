@@ -46,8 +46,24 @@ $query = "SELECT
             SUM(t.earned_tonase_incentive) as total_insentif_tonase,
             SUM(t.hm_s1) as total_hm_s1,
             SUM(t.ot_hours) as total_ot_hours,
+            SUM(
+                CASE 
+                    WHEN t.ot_hours <= 0 THEN 0
+                    WHEN t.ot_hours <= 1 THEN t.ot_hours * 1.5
+                    ELSE 1.5 + (t.ot_hours - 1) * 2
+                END
+            ) as total_eff_ot_hours,
             SUM(t.earned_hm_incentive) as total_insentif_hm,
-            SUM(t.overtime_amount) as total_overtime,
+            SUM(
+                CASE 
+                    WHEN t.overtime_amount > 0 THEN t.overtime_amount
+                    ELSE (CASE 
+                            WHEN t.ot_hours <= 0 THEN 0
+                            WHEN t.ot_hours <= 1 THEN t.ot_hours * 1.5
+                            ELSE 1.5 + (t.ot_hours - 1) * 2
+                          END) * $tarif_lembur
+                END
+            ) as total_overtime,
             (SELECT SUM(CASE WHEN category = 'increasing' THEN value WHEN category = 'decreasing' THEN -value ELSE value END) 
              FROM employee_salary_increasing_decreasing s 
              WHERE s.user_id = e.id AND s.date BETWEEN '$start_date' AND '$end_date') as penambah_pengurang
@@ -102,7 +118,7 @@ if ($calc_mode === 'tonase') {
 } elseif ($calc_mode === 'hm') {
     $headers = [
         'No', 'NIK', 'Nama Driver', 'Bank', 'No Rekening', 'Total Ritase',
-        'HM Shift 1', 'Insentif HM (17.000)', 'Overtime (Jam OT)', 'Uang Lembur (19.509)',
+        'HM Shift 1', 'Insentif HM (17.000)', 'Jam OT (Real)', 'Jam OT (Efektif)', 'Uang Lembur (19.509)',
         'Total Insentif HM', 'Gaji Pokok', 'Tunjangan Tetap', 'Penambah/Pengurang', 'Take Home Pay'
     ];
     fputcsv($output, $headers, ';');
@@ -125,6 +141,7 @@ if ($calc_mode === 'tonase') {
             $r['total_hm_s1'],
             $r['total_insentif_hm'],
             $r['total_ot_hours'],
+            $r['total_eff_ot_hours'],
             $r['total_overtime'],
             $insHm,
             $gapok,
