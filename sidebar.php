@@ -50,13 +50,14 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>Employee Management</span>
                     </a>
                 </li>
+                <li class="sidebar-title">Operasional Mining</li>
                 <?php
                 $sidebarPage = "employee_timesheets";
                 ?>
                 <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
                     <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
                         <i class="bi bi-clock-history"></i>
-                        <span>Timesheets (HM)</span>
+                        <span>Timesheets Mining</span>
                     </a>
                 </li>
                 <?php if (!isset($_SESSION['admin']['role']) || $_SESSION['admin']['role'] !== 'HR Site'): ?>
@@ -66,7 +67,29 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                 <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
                     <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
                         <i class="bi bi-wallet2"></i>
-                        <span>Rekap Gaji (Payroll)</span>
+                        <span>Payroll Mining</span>
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <li class="sidebar-title">Operasional Hauling</li>
+                <?php
+                $sidebarPage = "hauling_timesheets";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-truck"></i>
+                        <span>Timesheets Hauling</span>
+                    </a>
+                </li>
+                <?php if (!isset($_SESSION['admin']['role']) || $_SESSION['admin']['role'] !== 'HR Site'): ?>
+                <?php
+                $sidebarPage = "hauling_payroll";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-cash-coin"></i>
+                        <span>Payroll Hauling</span>
                     </a>
                 </li>
                 <?php endif; ?>
