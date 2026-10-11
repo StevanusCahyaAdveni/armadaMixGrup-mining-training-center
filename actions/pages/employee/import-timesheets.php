@@ -229,6 +229,36 @@ if (!function_exists('matchEmployeeAdvanced')) {
     }
 }
 
+if (!function_exists('findExistingEmployeeTimesheet')) {
+    function findExistingEmployeeTimesheet($con, $employeeId, $tanggal, $shift, $shiftType) {
+        if (empty($employeeId) || empty($tanggal)) return null;
+        
+        $isOt = ($shiftType === '2');
+        if ($isOt) {
+            $sql = "SELECT id FROM employee_timesheets 
+                    WHERE employee_id = ? 
+                      AND tanggal = ? 
+                      AND (shift = ? OR shift IS NULL OR shift = '')
+                      AND (shift_type = '2' OR (overtime_type != 'NONE' AND overtime_type IS NOT NULL))
+                    LIMIT 1";
+            $res = querySecure($con, $sql, [$employeeId, $tanggal, $shift], 'sss');
+        } else {
+            $sql = "SELECT id FROM employee_timesheets 
+                    WHERE employee_id = ? 
+                      AND tanggal = ? 
+                      AND (shift = ? OR shift IS NULL OR shift = '')
+                      AND (shift_type = '1' OR ((shift_type IS NULL OR shift_type = '' OR shift_type = '1') AND (overtime_type = 'NONE' OR overtime_type IS NULL)))
+                    LIMIT 1";
+            $res = querySecure($con, $sql, [$employeeId, $tanggal, $shift], 'sss');
+        }
+        
+        if ($res && ($row = mysqli_fetch_assoc($res))) {
+            return $row['id'];
+        }
+        return null;
+    }
+}
+
 // AJAX Preview, Search Employees, or Batch Save handling
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
 
@@ -395,10 +425,19 @@ if ($action === 'preview') {
         // Employee matching
         list($matchedEmpId, $matchedEmpName) = matchEmployeeAdvanced($operatorRaw, $employees, $normalizedEmpMap);
 
+        $existingId = null;
+        $isExisting = false;
         if (!empty($matchedEmpId)) {
             $matchedCount++;
             $employeeId = $matchedEmpId;
             $employeeName = $matchedEmpName;
+            $existingId = findExistingEmployeeTimesheet($con, $matchedEmpId, $tanggal, $shift, $shiftTypeRaw);
+            $isExisting = !empty($existingId);
+            if ($isExisting) {
+                $existingCount = ($existingCount ?? 0) + 1;
+            } else {
+                $newCount = ($newCount ?? 0) + 1;
+            }
         } else {
             $unmatchedCount++;
             $employeeId = null;
@@ -477,6 +516,8 @@ if ($action === 'preview') {
             'operator_raw'       => $operatorRaw,
             'employee_id'        => $employeeId,
             'employee_name'      => $employeeName,
+            'is_existing'        => $isExisting,
+            'existing_id'        => $existingId,
             'tanggal'            => $tanggal,
             'shift'              => $shift,
             'shift_type'         => $shiftTypeRaw,
@@ -512,12 +553,14 @@ if ($action === 'preview') {
         'total_rows'     => count($parsedRows),
         'matched_count'  => $matchedCount,
         'unmatched_count'=> $unmatchedCount,
+        'new_count'      => $newCount ?? 0,
+        'existing_count' => $existingCount ?? 0,
         'rows'           => $parsedRows
     ]);
     exit;
 }
 
-// 3. Batch Save Timesheets (Strict validation - No auto-create)
+// 3. Batch Save Timesheets (Upsert validation - Edit if exists, insert if new)
 if ($action === 'save_batch') {
     header('Content-Type: application/json');
     $jsonData = file_get_contents('php://input');
@@ -530,8 +573,11 @@ if ($action === 'save_batch') {
 
     $items = $data['items'];
     $successCount = 0;
+    $insertedCount = 0;
+    $updatedCount = 0;
     $failedCount = 0;
     $errors = [];
+    $processedExistingIds = [];
 
     // Begin database transaction
     mysqli_begin_transaction($con);
@@ -540,9 +586,21 @@ if ($action === 'save_batch') {
         (id, employee_id, tanggal, shift, shift_type, unit_id, hm_awal, hm_akhir, waktu_awal, waktu_akhir, rest_start, rest_end, ritase, solar, total_hm, ist_hm, hmc, applied_hm_rate, earned_hm_incentive, keterangan, overtime_type, overtime_start, overtime_end, overtime_rest_start, overtime_rest_end, hm_awal_lembur, hm_akhir_lembur, overtime_amount) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
-    $stmt = mysqli_prepare($con, $insertQuery);
+    $insertStmt = mysqli_prepare($con, $insertQuery);
 
-    if (!$stmt) {
+    $updateQuery = "UPDATE employee_timesheets SET
+        shift = ?, shift_type = ?, unit_id = ?, hm_awal = ?, hm_akhir = ?,
+        waktu_awal = ?, waktu_akhir = ?, rest_start = ?, rest_end = ?,
+        ritase = ?, solar = ?, total_hm = ?, ist_hm = ?, hmc = ?,
+        applied_hm_rate = ?, earned_hm_incentive = ?, keterangan = ?,
+        overtime_type = ?, overtime_start = ?, overtime_end = ?,
+        overtime_rest_start = ?, overtime_rest_end = ?, hm_awal_lembur = ?,
+        hm_akhir_lembur = ?, overtime_amount = ?, updated_at = NOW()
+        WHERE id = ?";
+
+    $updateStmt = mysqli_prepare($con, $updateQuery);
+
+    if (!$insertStmt || !$updateStmt) {
         mysqli_rollback($con);
         echo json_encode(['status' => 'error', 'message' => 'Gagal mempersiapkan query: ' . mysqli_error($con)]);
         exit;
@@ -567,7 +625,6 @@ if ($action === 'save_batch') {
             continue;
         }
 
-        $id = generate_uuid();
         $tanggal = sani($row['tanggal']);
         $shift = in_array($row['shift'], ['SIANG', 'MALAM']) ? $row['shift'] : 'SIANG';
         $shift_type = !empty($row['shift_type']) ? sani($row['shift_type']) : ($row['is_overtime'] ? '2' : '1');
@@ -595,65 +652,126 @@ if ($action === 'save_batch') {
         $hm_akhir_lembur = !empty($row['hm_akhir_lembur']) ? (float) $row['hm_akhir_lembur'] : null;
         $overtime_amount = (float) ($row['overtime_amount'] ?? 0);
 
-        mysqli_stmt_bind_param(
-            $stmt,
-            "ssssssddssssiddddiisssssssdd",
-            $id,
-            $empId,
-            $tanggal,
-            $shift,
-            $shift_type,
-            $unit_id,
-            $hm_awal,
-            $hm_akhir,
-            $waktu_awal,
-            $waktu_akhir,
-            $rest_start,
-            $rest_end,
-            $ritase,
-            $solar,
-            $total_hm,
-            $ist_hm,
-            $hmc,
-            $applied_hm_rate,
-            $earned_hm_incentive,
-            $keterangan,
-            $overtime_type,
-            $overtime_start,
-            $overtime_end,
-            $overtime_rest_start,
-            $overtime_rest_end,
-            $hm_awal_lembur,
-            $hm_akhir_lembur,
-            $overtime_amount
-        );
+        // Check if record already exists for this employee, date, shift, and shift_type
+        $existingId = !empty($row['existing_id']) ? sani($row['existing_id']) : null;
+        if (!$existingId || in_array($existingId, $processedExistingIds)) {
+            $foundId = findExistingEmployeeTimesheet($con, $empId, $tanggal, $shift, $shift_type);
+            if ($foundId && !in_array($foundId, $processedExistingIds)) {
+                $existingId = $foundId;
+            } else {
+                $existingId = null;
+            }
+        }
 
-        if (mysqli_stmt_execute($stmt)) {
-            $successCount++;
+        if ($existingId) {
+            // Update existing record
+            mysqli_stmt_bind_param(
+                $updateStmt,
+                "sssddssssiddddiisssssssdds",
+                $shift,
+                $shift_type,
+                $unit_id,
+                $hm_awal,
+                $hm_akhir,
+                $waktu_awal,
+                $waktu_akhir,
+                $rest_start,
+                $rest_end,
+                $ritase,
+                $solar,
+                $total_hm,
+                $ist_hm,
+                $hmc,
+                $applied_hm_rate,
+                $earned_hm_incentive,
+                $keterangan,
+                $overtime_type,
+                $overtime_start,
+                $overtime_end,
+                $overtime_rest_start,
+                $overtime_rest_end,
+                $hm_awal_lembur,
+                $hm_akhir_lembur,
+                $overtime_amount,
+                $existingId
+            );
+
+            if (mysqli_stmt_execute($updateStmt)) {
+                $updatedCount++;
+                $successCount++;
+                $processedExistingIds[] = $existingId;
+            } else {
+                $failedCount++;
+                $errors[] = "Baris " . ($idx + 1) . " gagal diperbarui: " . mysqli_stmt_error($updateStmt);
+            }
         } else {
-            $failedCount++;
-            $errors[] = "Baris " . ($idx + 1) . " gagal disimpan: " . mysqli_stmt_error($stmt);
+            // Insert new record
+            $id = generate_uuid();
+            mysqli_stmt_bind_param(
+                $insertStmt,
+                "ssssssddssssiddddiisssssssdd",
+                $id,
+                $empId,
+                $tanggal,
+                $shift,
+                $shift_type,
+                $unit_id,
+                $hm_awal,
+                $hm_akhir,
+                $waktu_awal,
+                $waktu_akhir,
+                $rest_start,
+                $rest_end,
+                $ritase,
+                $solar,
+                $total_hm,
+                $ist_hm,
+                $hmc,
+                $applied_hm_rate,
+                $earned_hm_incentive,
+                $keterangan,
+                $overtime_type,
+                $overtime_start,
+                $overtime_end,
+                $overtime_rest_start,
+                $overtime_rest_end,
+                $hm_awal_lembur,
+                $hm_akhir_lembur,
+                $overtime_amount
+            );
+
+            if (mysqli_stmt_execute($insertStmt)) {
+                $insertedCount++;
+                $successCount++;
+                $processedExistingIds[] = $id;
+            } else {
+                $failedCount++;
+                $errors[] = "Baris " . ($idx + 1) . " gagal disimpan: " . mysqli_stmt_error($insertStmt);
+            }
         }
     }
 
-    mysqli_stmt_close($stmt);
+    mysqli_stmt_close($insertStmt);
+    mysqli_stmt_close($updateStmt);
 
     if ($successCount > 0) {
         mysqli_commit($con);
-        $_SESSION['message'] = "Berhasil mengimpor $successCount data timesheet dari Excel!" . ($failedCount > 0 ? " ($failedCount baris dilewati)." : "");
+        $_SESSION['message'] = "Berhasil memproses $successCount data timesheet ($insertedCount baru ditambahkan, $updatedCount diperbarui)!" . ($failedCount > 0 ? " ($failedCount baris dilewati)." : "");
         $_SESSION['message_type'] = $failedCount > 0 ? 'warning' : 'success';
         echo json_encode([
-            'status'               => 'success',
-            'success_count'        => $successCount,
-            'failed_count'         => $failedCount,
-            'errors'               => $errors,
-            'message'              => "Berhasil menyimpan $successCount data!"
+            'status'         => 'success',
+            'success_count'  => $successCount,
+            'inserted_count' => $insertedCount,
+            'updated_count'  => $updatedCount,
+            'failed_count'   => $failedCount,
+            'errors'         => $errors,
+            'message'        => "Berhasil memproses $successCount data ($insertedCount baru, $updatedCount diperbarui)!"
         ]);
     } else {
         mysqli_rollback($con);
         echo json_encode([
             'status'  => 'error',
-            'message' => 'Tidak ada data yang berhasil disimpan.',
+            'message' => 'Tidak ada data yang berhasil diproses.',
             'errors'  => $errors
         ]);
     }

@@ -740,6 +740,8 @@ $pagination = makePagination($con, $query, 15);
                             <span class="badge bg-primary fs-6 cursor-pointer" id="badgeTotalRows" onclick="quickFilterStatus('ALL')" title="Klik untuk tampilkan semua" style="cursor: pointer;">0 Baris</span>
                             <span class="badge bg-success fs-6 cursor-pointer" id="badgeMatchedRows" onclick="quickFilterStatus('MATCHED')" title="Klik untuk filter Driver Cocok" style="cursor: pointer;">0 Driver Cocok</span>
                             <span class="badge bg-danger fs-6 cursor-pointer" id="badgeUnmatchedRows" onclick="quickFilterStatus('UNMATCHED')" title="Klik untuk filter Belum Cocok" style="cursor: pointer; display:none;">0 Belum Cocok</span>
+                            <span class="badge bg-warning text-dark fs-6" id="badgeExistingRows" title="Data hauling yang sudah ada dan akan diupdate/diedit" style="display:none;"><i class="bi bi-arrow-repeat me-1"></i>0 Update</span>
+                            <span class="badge bg-info text-dark fs-6" id="badgeNewRows" title="Data hauling baru yang akan ditambahkan" style="display:none;"><i class="bi bi-plus-circle me-1"></i>0 Baru</span>
                         </div>
                         <div class="d-flex gap-2 align-items-center">
                             <a href="?hal=employee_employees" target="_blank" class="btn btn-sm btn-outline-primary" title="Buka master karyawan di tab baru">
@@ -994,7 +996,12 @@ function renderPreviewTable(data) {
             '<td class="fw-semibold">' + escapeHtml(row.driver_raw) + '</td>' +
             '<td>' + selectHtml + '</td>' +
             '<td>' + (row.pengganti_raw ? escapeHtml(row.pengganti_raw) : '<span class="text-muted">-</span>') + '</td>' +
-            '<td class="text-center">' + (row.shift_type === '2' ? '<span class="badge bg-warning text-dark">Rit ' + row.ritase_ke + ' (S2/OT)</span>' : '<span class="badge bg-primary">Rit ' + row.ritase_ke + ' (S1)</span>') + '</td>' +
+            '<td class="text-center">' + 
+                (row.is_existing 
+                    ? '<span class="badge bg-warning text-dark border border-warning mb-1" title="Data sudah ada di sistem, akan diperbarui"><i class="bi bi-arrow-repeat me-1"></i>Update</span><br>' 
+                    : '<span class="badge bg-success border border-success mb-1" title="Data baru, akan ditambahkan"><i class="bi bi-plus-circle me-1"></i>Baru</span><br>') +
+                (row.shift_type === '2' ? '<span class="badge bg-warning-subtle text-dark border">Rit ' + row.ritase_ke + ' (S2/OT)</span>' : '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Rit ' + row.ritase_ke + ' (S1)</span>') + 
+            '</td>' +
             '<td class="text-end fw-bold text-success">' + (row.tonase ? row.tonase.toFixed(2) : '0.00') + '</td>' +
             '<td>' + (row.km_awal || 0) + ' → ' + (row.km_akhir || 0) + '</td>' +
             '<td class="fw-semibold">' + (row.total_km ? row.total_km.toFixed(1) : '0') + ' KM</td>' +
@@ -1137,10 +1144,17 @@ function updateSelectedSummary() {
     var totalRows = globalParsedRows.length;
     var matchedCount = 0;
     var unmatchedCount = 0;
+    var existingCount = 0;
+    var newCount = 0;
 
     globalParsedRows.forEach(function(r) {
         if (r.employee_id && r.employee_id.trim() !== '') {
             matchedCount++;
+            if (r.is_existing) {
+                existingCount++;
+            } else {
+                newCount++;
+            }
         } else {
             unmatchedCount++;
         }
@@ -1149,6 +1163,17 @@ function updateSelectedSummary() {
     document.getElementById('badgeTotalRows').innerText = totalRows + ' Total Baris';
     document.getElementById('badgeMatchedRows').innerText = matchedCount + ' Driver Cocok';
     
+    var badgeExisting = document.getElementById('badgeExistingRows');
+    if (badgeExisting) {
+        badgeExisting.style.display = existingCount > 0 ? 'inline-block' : 'none';
+        badgeExisting.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>' + existingCount + ' Update';
+    }
+    var badgeNew = document.getElementById('badgeNewRows');
+    if (badgeNew) {
+        badgeNew.style.display = newCount > 0 ? 'inline-block' : 'none';
+        badgeNew.innerHTML = '<i class="bi bi-plus-circle me-1"></i>' + newCount + ' Baru';
+    }
+
     var unBadge = document.getElementById('badgeUnmatchedRows');
     var unAlert = document.getElementById('unmatchedAlert');
     if (unmatchedCount > 0) {
@@ -1215,6 +1240,7 @@ function saveBatchImport() {
     .then(function(resData) {
         document.getElementById('importLoading').style.display = 'none';
         if (resData.status === 'success') {
+            alert('Sukses! ' + (resData.message || 'Data timesheet hauling berhasil diproses.'));
             window.location.reload();
         } else {
             alert(resData.message || 'Gagal menyimpan data.');

@@ -692,6 +692,8 @@ function handleOvertimeTypeChange(selectElement, isEdit) {
                             <span class="badge bg-primary fs-6 cursor-pointer" id="badgeTotalRows" onclick="quickFilterStatus('ALL')" title="Klik untuk tampilkan semua" style="cursor: pointer;">0 Baris</span>
                             <span class="badge bg-success fs-6 cursor-pointer" id="badgeMatchedRows" onclick="quickFilterStatus('MATCHED')" title="Klik untuk filter Karyawan Cocok" style="cursor: pointer;">0 Karyawan Cocok</span>
                             <span class="badge bg-danger fs-6 cursor-pointer" id="badgeUnmatchedRows" onclick="quickFilterStatus('UNMATCHED')" title="Klik untuk filter Belum Cocok" style="cursor: pointer; display:none;">0 Belum Cocok</span>
+                            <span class="badge bg-warning text-dark fs-6" id="badgeExistingRows" title="Data yang sudah ada dan akan diupdate/diedit" style="display:none;"><i class="bi bi-arrow-repeat me-1"></i>0 Update</span>
+                            <span class="badge bg-info text-dark fs-6" id="badgeNewRows" title="Data baru yang akan ditambahkan" style="display:none;"><i class="bi bi-plus-circle me-1"></i>0 Baru</span>
                         </div>
                         <div class="d-flex gap-2 align-items-center">
                             <a href="?hal=employee_employees" target="_blank" class="btn btn-sm btn-outline-primary" title="Buka master karyawan di tab baru untuk tambah karyawan baru">
@@ -902,7 +904,12 @@ function renderPreviewTable(data) {
             '<td>' + (idx + 1) + '</td>' +
             '<td>' + escapeHtml(row.tanggal) + '</td>' +
             '<td><span class="badge ' + (row.shift === 'MALAM' ? 'bg-dark' : 'bg-info text-dark') + '">' + escapeHtml(row.shift) + '</span></td>' +
-            '<td>' + (row.is_overtime ? '<span class="badge bg-warning text-dark">Lembur (2)</span>' : '<span class="badge bg-secondary">Pokok (1)</span>') + '</td>' +
+            '<td class="text-center">' + 
+                (row.is_existing 
+                    ? '<span class="badge bg-warning text-dark border border-warning mb-1" title="Data sudah ada di sistem, akan diperbarui"><i class="bi bi-arrow-repeat me-1"></i>Update</span><br>' 
+                    : '<span class="badge bg-success border border-success mb-1" title="Data baru, akan ditambahkan"><i class="bi bi-plus-circle me-1"></i>Baru</span><br>') +
+                (row.is_overtime ? '<span class="badge bg-warning-subtle text-dark border">Lembur (2)</span>' : '<span class="badge bg-secondary-subtle text-dark border">Pokok (1)</span>') + 
+            '</td>' +
             '<td class="fw-bold">' + escapeHtml(row.unit_id || '-') + '</td>' +
             '<td class="fw-semibold">' + escapeHtml(row.operator_raw) + '</td>' +
             '<td>' + selectHtml + '</td>' +
@@ -1059,10 +1066,17 @@ function updateSelectedSummary() {
 
     var matchedCount = 0;
     var emptyCount = 0;
+    var existingCount = 0;
+    var newCount = 0;
 
     globalParsedRows.forEach(function(r) {
         if (r.employee_id && r.employee_id.trim() !== '') {
             matchedCount++;
+            if (r.is_existing) {
+                existingCount++;
+            } else {
+                newCount++;
+            }
         } else {
             emptyCount++;
         }
@@ -1070,6 +1084,17 @@ function updateSelectedSummary() {
 
     document.getElementById('badgeTotalRows').innerText = globalParsedRows.length + ' Baris';
     document.getElementById('badgeMatchedRows').innerText = matchedCount + ' Karyawan Cocok';
+
+    var badgeExisting = document.getElementById('badgeExistingRows');
+    if (badgeExisting) {
+        badgeExisting.style.display = existingCount > 0 ? 'inline-block' : 'none';
+        badgeExisting.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>' + existingCount + ' Update';
+    }
+    var badgeNew = document.getElementById('badgeNewRows');
+    if (badgeNew) {
+        badgeNew.style.display = newCount > 0 ? 'inline-block' : 'none';
+        badgeNew.innerHTML = '<i class="bi bi-plus-circle me-1"></i>' + newCount + ' Baru';
+    }
     
     var badgeUnmatched = document.getElementById('badgeUnmatchedRows');
     var alertUnmatched = document.getElementById('unmatchedAlert');

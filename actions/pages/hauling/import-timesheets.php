@@ -214,6 +214,24 @@ if (!function_exists('calcOvertimeAmount')) {
     }
 }
 
+if (!function_exists('findExistingHaulingTimesheet')) {
+    function findExistingHaulingTimesheet($con, $employeeId, $tanggal, $ritaseKe, $shiftType) {
+        if (empty($employeeId) || empty($tanggal)) return null;
+        
+        $sql = "SELECT id FROM hauling_timesheets 
+                WHERE employee_id = ? 
+                  AND tanggal = ? 
+                  AND ritase_ke = ?
+                LIMIT 1";
+        $res = querySecure($con, $sql, [$employeeId, $tanggal, $ritaseKe], 'ssi');
+        if ($res && ($row = mysqli_fetch_assoc($res))) {
+            return $row['id'];
+        }
+        
+        return null;
+    }
+}
+
 $action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
 
 // 1. Real-time Employee Search API for Select2
@@ -361,8 +379,17 @@ if ($action === 'preview') {
         list($driverId, $driverName) = matchHaulingDriver($driverRaw, $employees, $normalizedEmpMap);
         list($subDriverId, $subDriverName) = matchHaulingDriver($penggantiRaw, $employees, $normalizedEmpMap);
 
+        $existingId = null;
+        $isExisting = false;
         if (!empty($driverId)) {
             $matchedCount++;
+            $existingId = findExistingHaulingTimesheet($con, $driverId, $tanggal, $ritaseKe, $shiftType);
+            $isExisting = !empty($existingId);
+            if ($isExisting) {
+                $existingCount = ($existingCount ?? 0) + 1;
+            } else {
+                $newCount = ($newCount ?? 0) + 1;
+            }
         } else {
             $unmatchedCount++;
         }
@@ -372,6 +399,8 @@ if ($action === 'preview') {
             'driver_raw'                => $driverRaw,
             'employee_id'               => $driverId ?: '',
             'employee_name'             => $driverName ?: '',
+            'is_existing'               => $isExisting,
+            'existing_id'               => $existingId,
             'pengganti_raw'             => $penggantiRaw,
             'substitute_employee_id'    => $subDriverId ?: '',
             'substitute_employee_name'  => $subDriverName ?: '',
@@ -410,12 +439,14 @@ if ($action === 'preview') {
         'total_rows'     => count($parsedRows),
         'matched_count'  => $matchedCount,
         'unmatched_count'=> $unmatchedCount,
+        'new_count'      => $newCount ?? 0,
+        'existing_count' => $existingCount ?? 0,
         'rows'           => $parsedRows
     ]);
     exit;
 }
 
-// 3. Batch Save Imported Data to Database
+// 3. Batch Save Imported Data to Database (Upsert: Edit if exists, Insert if new)
 if ($action === 'save_batch') {
     header('Content-Type: application/json');
 
@@ -436,7 +467,10 @@ if ($action === 'save_batch') {
     mysqli_begin_transaction($con);
 
     $insertedCount = 0;
+    $updatedCount = 0;
+    $successCount = 0;
     $errors = [];
+    $processedExistingIds = [];
 
     $insertSql = "INSERT INTO hauling_timesheets (
         id, employee_id, substitute_employee_id, tanggal, unit_id, 
@@ -454,8 +488,23 @@ if ($action === 'save_batch') {
         ?, ?, ?, ?, ?
     )";
 
-    $stmt = mysqli_prepare($con, $insertSql);
-    if (!$stmt) {
+    $insertStmt = mysqli_prepare($con, $insertSql);
+
+    $updateSql = "UPDATE hauling_timesheets SET
+        substitute_employee_id = ?, unit_id = ?, ritase_ke = ?, shift_type = ?,
+        tonase = ?, km_awal = ?, km_akhir = ?, total_km = ?,
+        jam_mulai = ?, jam_loading = ?, jam_timbang_awal = ?, durasi_loading_timbang = ?,
+        jam_bongkar = ?, jam_timbang_akhir = ?, durasi_timbang_awal_akhir = ?,
+        jam_tiba_site = ?, durasi_timbang_site = ?,
+        rest_time = ?, p5m_time = ?, cuci = ?, safety = ?,
+        hm_s1 = ?, ot_hours = ?, tonase_rate = ?,
+        earned_tonase_incentive = ?, earned_hm_incentive = ?, overtime_amount = ?,
+        keterangan = ?, updated_at = NOW()
+        WHERE id = ?";
+
+    $updateStmt = mysqli_prepare($con, $updateSql);
+
+    if (!$insertStmt || !$updateStmt) {
         mysqli_rollback($con);
         echo json_encode(['status' => 'error', 'message' => 'Gagal mempersiapkan query: ' . mysqli_error($con)]);
         exit;
@@ -467,7 +516,6 @@ if ($action === 'save_batch') {
             continue; // Skip rows without matched employee
         }
 
-        $id = generate_uuid();
         $subEmpId = !empty($r['substitute_employee_id']) ? trim($r['substitute_employee_id']) : null;
         $tanggal = sani($r['tanggal']);
         $unitId = sani($r['unit_id'] ?? '');
@@ -501,42 +549,85 @@ if ($action === 'save_batch') {
         $overtimeAmt = (float) ($r['overtime_amount'] ?? ($otHours * 19509));
         $keterangan = !empty($r['keterangan']) ? sani($r['keterangan']) : null;
 
-        // Bind 31 parameters
-        mysqli_stmt_bind_param(
-            $stmt,
-            'sssssisddddssssssssssiiiiidddds',
-            $id, $empId, $subEmpId, $tanggal, $unitId,
-            $ritaseKe, $shiftType, $tonase, $kmAwal, $kmAkhir, $totalKm,
-            $jamMulai, $jamLoading, $jamTimbangAwal, $durLoadingTimbang,
-            $jamBongkar, $jamTimbangAkhir, $durTimbangAwalAkhir, $jamTibaSite, $durTimbangSite,
-            $restTime, $p5mTime, $cuci, $safety, $hmS1, $otHours,
-            $tonaseRate, $earnedTonase, $earnedHm, $overtimeAmt, $keterangan
-        );
+        // Check if record already exists for this driver, date, and ritase
+        $existingId = !empty($r['existing_id']) ? sani($r['existing_id']) : null;
+        if (!$existingId || in_array($existingId, $processedExistingIds)) {
+            $foundId = findExistingHaulingTimesheet($con, $empId, $tanggal, $ritaseKe, $shiftType);
+            if ($foundId && !in_array($foundId, $processedExistingIds)) {
+                $existingId = $foundId;
+            } else {
+                $existingId = null;
+            }
+        }
 
-        if (mysqli_stmt_execute($stmt)) {
-            $insertedCount++;
+        if ($existingId) {
+            // Update existing record
+            mysqli_stmt_bind_param(
+                $updateStmt,
+                'ssisddddsssdssdsdsiiddiiddds',
+                $subEmpId, $unitId, $ritaseKe, $shiftType,
+                $tonase, $kmAwal, $kmAkhir, $totalKm,
+                $jamMulai, $jamLoading, $jamTimbangAwal, $durLoadingTimbang,
+                $jamBongkar, $jamTimbangAkhir, $durTimbangAwalAkhir,
+                $jamTibaSite, $durTimbangSite,
+                $restTime, $p5mTime, $cuci, $safety,
+                $hmS1, $otHours, $tonaseRate,
+                $earnedTonase, $earnedHm, $overtimeAmt,
+                $keterangan, $existingId
+            );
+
+            if (mysqli_stmt_execute($updateStmt)) {
+                $updatedCount++;
+                $successCount++;
+                $processedExistingIds[] = $existingId;
+            } else {
+                $errors[] = "Baris " . ($idx + 1) . " gagal diperbarui: " . mysqli_stmt_error($updateStmt);
+            }
         } else {
-            $errors[] = "Baris " . ($idx + 1) . ": " . mysqli_stmt_error($stmt);
+            // Insert new record
+            $id = generate_uuid();
+            mysqli_stmt_bind_param(
+                $insertStmt,
+                'sssssisddddssssssssssiiiiidddds',
+                $id, $empId, $subEmpId, $tanggal, $unitId,
+                $ritaseKe, $shiftType, $tonase, $kmAwal, $kmAkhir, $totalKm,
+                $jamMulai, $jamLoading, $jamTimbangAwal, $durLoadingTimbang,
+                $jamBongkar, $jamTimbangAkhir, $durTimbangAwalAkhir, $jamTibaSite, $durTimbangSite,
+                $restTime, $p5mTime, $cuci, $safety, $hmS1, $otHours,
+                $tonaseRate, $earnedTonase, $earnedHm, $overtimeAmt, $keterangan
+            );
+
+            if (mysqli_stmt_execute($insertStmt)) {
+                $insertedCount++;
+                $successCount++;
+                $processedExistingIds[] = $id;
+            } else {
+                $errors[] = "Baris " . ($idx + 1) . " gagal disimpan: " . mysqli_stmt_error($insertStmt);
+            }
         }
     }
 
-    mysqli_stmt_close($stmt);
+    mysqli_stmt_close($insertStmt);
+    mysqli_stmt_close($updateStmt);
 
-    if ($insertedCount > 0) {
+    if ($successCount > 0) {
         mysqli_commit($con);
-        $_SESSION['message'] = "Berhasil mengimpor $insertedCount data timesheet hauling ke sistem!";
+        $_SESSION['message'] = "Berhasil memproses $successCount data timesheet hauling ($insertedCount baru ditambahkan, $updatedCount diperbarui)!";
         $_SESSION['message_type'] = 'success';
 
         echo json_encode([
             'status'         => 'success',
+            'success_count'  => $successCount,
             'inserted_count' => $insertedCount,
-            'errors'         => $errors
+            'updated_count'  => $updatedCount,
+            'errors'         => $errors,
+            'message'        => "Berhasil memproses $successCount data ($insertedCount baru, $updatedCount diperbarui)!"
         ]);
     } else {
         mysqli_rollback($con);
         echo json_encode([
             'status'  => 'error',
-            'message' => 'Tidak ada data yang berhasil disimpan. Pastikan karyawan sudah dipilih!',
+            'message' => 'Tidak ada data yang berhasil diproses. Pastikan driver sudah dipilih!',
             'errors'  => $errors
         ]);
     }
