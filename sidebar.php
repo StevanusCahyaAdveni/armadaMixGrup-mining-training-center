@@ -28,7 +28,24 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>Dashboard</span>
                     </a>
                 </li>
-
+                <?php
+                $sidebarPage = "dashboard_dashboard-performance-hauling";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Performance Hauling</span>
+                    </a>
+                </li>
+                <?php
+                $sidebarPage = "dashboard_dashboard-performance-mining";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-bar-chart-line-fill"></i>
+                        <span>Performance Mining</span>
+                    </a>
+                </li>
 
                 <li class="sidebar-title">Users</li>
                 <!-- Example New Menu in Side Bar -->
@@ -60,6 +77,15 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                         <span>Timesheets Mining</span>
                     </a>
                 </li>
+                <?php
+                $sidebarPage = "dashboard_dashboard-performance-mining";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>Performance Mining</span>
+                    </a>
+                </li>
                 <?php if (!isset($_SESSION['admin']['role']) || $_SESSION['admin']['role'] !== 'HR Site'): ?>
                 <?php
                 $sidebarPage = "employee_payroll";
@@ -80,6 +106,15 @@ $getHal = sani($_GET['hal'] ?? 'dashboard');
                     <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
                         <i class="bi bi-truck"></i>
                         <span>Timesheets Hauling</span>
+                    </a>
+                </li>
+                <?php
+                $sidebarPage = "dashboard_dashboard-performance-hauling";
+                ?>
+                <li class="sidebar-item <?= ($getHal == $sidebarPage) ? "active" : "" ?>">
+                    <a href="?hal=<?php echo $sidebarPage; ?>" class='sidebar-link'>
+                        <i class="bi bi-speedometer"></i>
+                        <span>Performance Hauling</span>
                     </a>
                 </li>
                 <?php if (!isset($_SESSION['admin']['role']) || $_SESSION['admin']['role'] !== 'HR Site'): ?>

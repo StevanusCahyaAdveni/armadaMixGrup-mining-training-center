@@ -92,8 +92,8 @@ $pagination = makePagination($con, $query, 15);
 <div class="page-heading">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <div>
-            <h5 class="mb-0 fw-bold"><i class="bi bi-truck text-primary me-2"></i>Timesheets Hauling (Dump Truck)</h5>
-            <small class="text-muted">Kelola ritase harian, tonase muatan, jam operasional, dan insentif driver hauling</small>
+            <!-- <h5 class="mb-0 fw-bold"><i class="bi bi-truck text-primary me-2"></i>Timesheets Hauling (Dump Truck)</h5>
+            <small class="text-muted">Kelola ritase harian, tonase muatan, jam operasional, dan insentif driver hauling</small> -->
         </div>
         <div class="d-flex gap-2">
             <button type="button" class="btn shadow-sm btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#importExcelModal">

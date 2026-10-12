@@ -1,7 +1,11 @@
 <?php 
+if (isset($_SESSION['admin']) || isset($_SESSION['user_id'])) {
+    $_SESSION['is_logged_in'] = true;
+}
+
 if (!isset($_SESSION['is_logged_in']) || $_SESSION['is_logged_in'] !== true) {
     // Try auto-login if credentials in POST
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_login'])) {
+    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_login'])) {
         $email = sani($_POST['email']);
         $password = sani($_POST['password']);
 
@@ -27,16 +31,24 @@ if (!isset($_SESSION['is_logged_in']) || $_SESSION['is_logged_in'] !== true) {
                     $_SESSION['admin'] = $user;
                     // Continue to load page
                 } else {
-                    exit; // Password salah
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(['status' => 'error', 'message' => 'Password tidak valid']);
+                    exit;
                 }
             } else {
-                exit; // User tidak ditemukan
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['status' => 'error', 'message' => 'User tidak ditemukan']);
+                exit;
             }
         } else {
-            exit; // Input tidak lengkap
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['status' => 'error', 'message' => 'Input auto login tidak lengkap']);
+            exit;
         }
     } else {
-        exit; // Tidak ada session dan tidak ada auto-login
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'error', 'message' => 'Sesi login telah berakhir. Silakan login kembali.']);
+        exit;
     }
 }
 ?>
