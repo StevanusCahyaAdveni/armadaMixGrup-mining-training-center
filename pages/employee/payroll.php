@@ -169,7 +169,7 @@ $result = mysqli_query($con, $query);
                             <th class="text-end">Insentif HM 2</th>
                             <th class="text-end fw-bold" style="background-color: #dbeafe !important; color: #1e3a8a !important;">Total Insentif HM</th>
                             <th class="text-center">Jam OT (Real / Efektif)</th>
-                            <th class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">Uang Lembur (@19.509)</th>
+                            <th class="text-end fw-bold" style="background-color: #eff6ff !important; color: #1e3a8a !important;">Uang Lembur (@<?= $global_ot_rate ?>)</th>
                             <th class="text-end">Penambah/Pengurang</th>
                             <th class="text-end fw-bold" style="background-color: #d1fae5 !important; color: #065f46 !important;">Take Home Pay</th>
                         </tr>

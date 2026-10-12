@@ -8,7 +8,7 @@ ADD COLUMN hm_akhir_lembur DECIMAL(10,2) NULL,
 ADD COLUMN overtime_amount DECIMAL(15,2) DEFAULT 0;
 
 INSERT INTO settings (id, setting_key, setting_value, setting_desc, created_at) 
-VALUES (UUID(), 'tarif_lembur', '19505', 'Tarif dasar lembur per jam', NOW());
+VALUES (UUID(), 'tarif_lembur', '19509', 'Tarif dasar lembur per jam', NOW());
 
 ALTER TABLE `employees` ADD `join_date` DATE NULL DEFAULT NULL AFTER `position`;
 

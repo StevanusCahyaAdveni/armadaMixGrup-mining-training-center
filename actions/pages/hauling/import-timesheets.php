@@ -101,12 +101,16 @@ if (!function_exists('parseExcelTime')) {
     }
 }
 
-// Helper: Parse Excel Number (e.g. 53,17 -> 53.17, 1.011 -> 1011, - -> 0)
+// Helper: Parse Excel Number (e.g. 53,17 -> 53.17, 1.011 -> 1011, 49.O9 -> 49.09, 44..84 -> 44.84, - -> 0)
 if (!function_exists('parseExcelNumber')) {
     function parseExcelNumber($numStr) {
         $numStr = trim($numStr);
         if (empty($numStr) || $numStr === '-') return 0.00;
-        $clean = str_replace(' ', '', $numStr);
+        // Fix typo letter O/o between digits (e.g. 49.O9 -> 49.09)
+        $clean = preg_replace('/(?<=[0-9\.\,])[Oo](?=[0-9])/', '0', $numStr);
+        $clean = str_replace([' ', "\xc2\xa0"], '', $clean);
+        // Replace multiple dots e.g. .. with single dot
+        $clean = preg_replace('/\.+/', '.', $clean);
         if (strpos($clean, ',') !== false) {
             $clean = str_replace('.', '', $clean);
             $clean = str_replace(',', '.', $clean);
@@ -564,7 +568,7 @@ if ($action === 'save_batch') {
             // Update existing record
             mysqli_stmt_bind_param(
                 $updateStmt,
-                'ssisddddsssdssdsdsiiddiiddds',
+                'ssisddddsssdssdsdssiiddidddss',
                 $subEmpId, $unitId, $ritaseKe, $shiftType,
                 $tonase, $kmAwal, $kmAkhir, $totalKm,
                 $jamMulai, $jamLoading, $jamTimbangAwal, $durLoadingTimbang,
@@ -588,7 +592,7 @@ if ($action === 'save_batch') {
             $id = generate_uuid();
             mysqli_stmt_bind_param(
                 $insertStmt,
-                'sssssisddddssssssssssiiiiidddds',
+                'sssssisddddsssdssdsdssiiddiddds',
                 $id, $empId, $subEmpId, $tanggal, $unitId,
                 $ritaseKe, $shiftType, $tonase, $kmAwal, $kmAkhir, $totalKm,
                 $jamMulai, $jamLoading, $jamTimbangAwal, $durLoadingTimbang,

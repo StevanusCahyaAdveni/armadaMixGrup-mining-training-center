@@ -9,6 +9,10 @@ if (isset($_GET['user_id'])) {
 }
 $query = "SELECT * FROM employee_overtimes $whereClause";
 $pagination = makePagination($con, $query, 10);
+
+$otRateQuery = mysqli_query($con, "SELECT setting_value FROM settings WHERE setting_key = 'tarif_lembur'");
+$otRateRow = mysqli_fetch_assoc($otRateQuery);
+$tarif_lembur = isset($otRateRow['setting_value']) ? (float)$otRateRow['setting_value'] : 19509;
 ?>
 
 <!-- Alert Message -->
@@ -235,7 +239,7 @@ function calculateOvertime(startId, endId, amountId) {
         const diffHours = diffMs / (1000 * 60 * 60);
         
         let amount = 0;
-        const hourlyRate = 19505;
+        const hourlyRate = <?= (float)$tarif_lembur ?>;
         
         if (diffHours <= 1) {
             amount = diffHours * 1.5 * hourlyRate;

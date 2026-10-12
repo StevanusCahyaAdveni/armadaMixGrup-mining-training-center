@@ -109,8 +109,11 @@ if (!function_exists('parseExcelNumber')) {
     function parseExcelNumber($numStr) {
         $numStr = trim($numStr);
         if (empty($numStr) || $numStr === '-') return 0.00;
-        // Remove dots if used as thousand separator, then change comma to dot
-        $clean = str_replace(' ', '', $numStr);
+        // Fix typo letter O/o between digits (e.g. 49.O9 -> 49.09)
+        $clean = preg_replace('/(?<=[0-9\.\,])[Oo](?=[0-9])/', '0', $numStr);
+        $clean = str_replace([' ', "\xc2\xa0"], '', $clean);
+        // Replace multiple dots e.g. .. with single dot
+        $clean = preg_replace('/\.+/', '.', $clean);
         if (strpos($clean, ',') !== false) {
             $clean = str_replace('.', '', $clean);
             $clean = str_replace(',', '.', $clean);

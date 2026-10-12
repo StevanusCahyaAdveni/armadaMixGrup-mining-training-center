@@ -410,9 +410,9 @@ if ($result) {
                             <th>Bank & Rekening</th>
                             <th class="text-center">Total Rit</th>
                             <th class="text-center">HM Shift 1 (Pokok)</th>
-                            <th class="text-end">Insentif HM (@17.000)</th>
+                            <th class="text-end">Insentif HM (@<?= $global_rate ?>)</th>
                             <th class="text-center">Jam OT (Real/Efektif)</th>
-                            <th class="text-end">Uang Lembur (@19.509)</th>
+                            <th class="text-end">Uang Lembur (@<?= $global_ot_rate ?>)</th>
                             <th class="text-end fw-bold" style="background-color: #dbeafe !important; color: #1e3a8a !important;">Total Insentif HM</th>
                             <th class="text-end">Penambah/Pengurang</th>
                             <th class="text-end fw-bold" style="background-color: #d1fae5 !important; color: #065f46 !important;">Take Home Pay (HM)</th>
