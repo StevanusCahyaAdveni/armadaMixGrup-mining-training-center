@@ -1,3 +1,7 @@
+<center>
+    <H1>Maintenance Mode</H1>
+</center>
+<?php return;?>
 <?php
 session_start();
 include 'config.php';
